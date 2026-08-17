@@ -10292,8 +10292,7 @@ function _selectBuildingsForAOI() {
       }
     }
   }
-  // Fallback: variável genérica
-  return window.SAGRISCO_BUILDINGS || null;
+  return null; // No matching pre-loaded city — use online fetch (api/buildings)
 }
 
 // ── Shared analysis engine ──────────────────────────────────────
