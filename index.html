@@ -10732,14 +10732,24 @@ async function _runMSBuildingsOnline(btn, btnOrigHtml, _stepEl, _closeOvl) {
     toast('warn', msg);
   };
 
-  const allCoords = Object.values(acPolyData).flat();
-  const buf = 0.002;
-  const south = Math.min(...allCoords.map(c=>c[1])) - buf;
-  const north = Math.max(...allCoords.map(c=>c[1])) + buf;
-  const west  = Math.min(...allCoords.map(c=>c[0])) - buf;
-  const east  = Math.max(...allCoords.map(c=>c[0])) + buf;
+  // Use AOI bounds so ALL buildings in the study area are fetched and shown.
+  // AC/AD zones are on steep slopes where buildings are rare; using the full
+  // AOI bbox ensures we also capture buildings at the base of the slopes.
+  let south, north, west, east;
+  if (aoiLayer) {
+    const b = aoiLayer.getBounds();
+    south = b.getSouth(); north = b.getNorth();
+    west  = b.getWest();  east  = b.getEast();
+  } else {
+    const allCoords = Object.values(acPolyData).flat();
+    const buf = 0.005;
+    south = Math.min(...allCoords.map(c=>c[1])) - buf;
+    north = Math.max(...allCoords.map(c=>c[1])) + buf;
+    west  = Math.min(...allCoords.map(c=>c[0])) - buf;
+    east  = Math.max(...allCoords.map(c=>c[0])) + buf;
+  }
   const quadkeys = _bboxToQuadkeys(south, west, north, east);
-  console.log('[MS Buildings] quadkeys:', quadkeys);
+  console.log('[MS Buildings] bbox:', south.toFixed(5), west.toFixed(5), north.toFixed(5), east.toFixed(5), '| quadkeys:', quadkeys);
 
   const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
   let features = [];
@@ -10796,9 +10806,13 @@ async function _runMSBuildingsOnline(btn, btnOrigHtml, _stepEl, _closeOvl) {
         `/api/buildings?south=${south.toFixed(6)}&west=${west.toFixed(6)}&north=${north.toFixed(6)}&east=${east.toFixed(6)}`,
         { signal: AbortSignal.timeout(58000) }
       );
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      if (!r.ok) {
+        const errText = await r.text().catch(() => '');
+        throw new Error(`HTTP ${r.status}: ${errText.slice(0,120)}`);
+      }
       features = await r.json();
       console.log(`[MS Buildings] api/buildings → ${features.length} edificações`);
+      _setStep(`${features.length} edificação(ões) recebida(s)...`);
     } catch(e) {
       _abort(`<i class="fa fa-exclamation-triangle" style="color:#ef5350"></i>&nbsp;Falha ao obter edificações: ${e.message}`);
       return;

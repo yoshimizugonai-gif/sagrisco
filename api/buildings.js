@@ -3,9 +3,9 @@
 // filters features to the requested bbox, and returns a compact JSON array.
 // Avoids Vercel's 4.5 MB response limit that would apply to a raw proxy.
 
-import { createGunzip } from 'zlib';
-import https from 'https';
-import http from 'http';
+import { createGunzip } from 'node:zlib';
+import https from 'node:https';
+import http from 'node:http';
 
 const CSV_URL = 'https://minedbuildings.z5.web.core.windows.net/global-buildings/dataset-links.csv';
 const ALLOWED_HOSTS = [
