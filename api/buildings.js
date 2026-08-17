@@ -1,11 +1,11 @@
-// Vercel Serverless Function — MS Buildings tile pipeline (server-side)
-// Streams each tile (gzipped NDJSON) without buffering the full file,
-// filters features to the requested bbox, and returns a compact JSON array.
-// Avoids Vercel's 4.5 MB response limit that would apply to a raw proxy.
+// Vercel Serverless Function — MS Buildings server-side pipeline
+// 1. Download dataset-links.csv, find tile URLs for the requested bbox.
+// 2. Download each tile (gzipped NDJSON), decompress with gunzipSync,
+//    parse line-by-line, return only features that intersect the bbox.
+// The filtered response is ~200 buildings (~100 KB) so Vercel's 4.5 MB
+// response limit never applies here (it DID apply to the old raw-proxy).
 
-import { createGunzip } from 'node:zlib';
-import https from 'node:https';
-import http from 'node:http';
+import { gunzipSync } from 'node:zlib';
 
 const CSV_URL = 'https://minedbuildings.z5.web.core.windows.net/global-buildings/dataset-links.csv';
 const ALLOWED_HOSTS = [
@@ -14,10 +14,10 @@ const ALLOWED_HOSTS = [
 ];
 const MAX_FEATURES = 8000;
 
-// ── Quadkey helpers (mirrors browser-side _bboxToQuadkeys) ───────────────────
+// ── Quadkey helpers ───────────────────────────────────────────────────────────
 function latLonToTile(lat, lon, zoom) {
   const sinLat = Math.sin(lat * Math.PI / 180);
-  const n = Math.pow(2, zoom);
+  const n = 2 ** zoom;
   const x = Math.floor((lon + 180) / 360 * n);
   const y = Math.floor((1 - Math.log((1 + sinLat) / (1 - sinLat)) / (2 * Math.PI)) / 2 * n);
   return { x: Math.max(0, Math.min(x, n - 1)), y: Math.max(0, Math.min(y, n - 1)) };
@@ -47,7 +47,7 @@ function bboxToQuadkeys(south, west, north, east, zoom = 9) {
   return qks;
 }
 
-// ── Bbox intersection check ───────────────────────────────────────────────────
+// ── Bbox filter ───────────────────────────────────────────────────────────────
 function featInBbox(feat, south, west, north, east) {
   try {
     const geom = feat.geometry;
@@ -63,57 +63,36 @@ function featInBbox(feat, south, west, north, east) {
   } catch (_) { return false; }
 }
 
-// ── Stream a tile URL, decompress if .gz, parse NDJSON, filter to bbox ───────
-// Uses Node.js http/https so we never buffer the full decompressed file.
-function streamTileFeatures(tileUrl, south, west, north, east, maxFeat, redirectsLeft = 3) {
-  return new Promise((resolve) => {
-    const features = [];
-    const parsed = new URL(tileUrl);
-    const mod = parsed.protocol === 'https:' ? https : http;
+// ── Fetch one tile, decompress if gzipped, parse NDJSON, filter to bbox ──────
+async function fetchAndFilterTile(url, south, west, north, east, maxFeat) {
+  let r;
+  try {
+    r = await fetch(url, { signal: AbortSignal.timeout(45000) });
+  } catch (_) { return []; }
+  if (!r.ok) return [];
 
-    const req = mod.get(tileUrl, (res) => {
-      // Follow redirects
-      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location && redirectsLeft > 0) {
-        res.resume();
-        streamTileFeatures(res.headers.location, south, west, north, east, maxFeat, redirectsLeft - 1)
-          .then(resolve);
-        return;
-      }
-      if (res.statusCode !== 200) { res.resume(); resolve([]); return; }
+  let buf;
+  try {
+    buf = Buffer.from(await r.arrayBuffer());
+  } catch (_) { return []; }
 
-      const isGzip = /\.gz$/i.test(parsed.pathname);
-      const stream = isGzip ? res.pipe(createGunzip()) : res;
+  let text;
+  try {
+    // Check gzip magic bytes (0x1F 0x8B)
+    text = (buf[0] === 0x1f && buf[1] === 0x8b)
+      ? gunzipSync(buf).toString('utf8')
+      : buf.toString('utf8');
+  } catch (_) { return []; }
 
-      let buf = '';
-      stream.on('data', chunk => {
-        if (features.length >= maxFeat) return;
-        buf += chunk.toString('utf8');
-        const nl = buf.lastIndexOf('\n');
-        if (nl < 0) return;
-        for (const line of buf.slice(0, nl).split('\n')) {
-          if (!line.trim() || features.length >= maxFeat) continue;
-          try {
-            const feat = JSON.parse(line);
-            if (featInBbox(feat, south, west, north, east)) features.push(feat);
-          } catch (_) {}
-        }
-        buf = buf.slice(nl + 1);
-      });
-      stream.on('end', () => {
-        if (buf.trim() && features.length < maxFeat) {
-          try {
-            const feat = JSON.parse(buf);
-            if (featInBbox(feat, south, west, north, east)) features.push(feat);
-          } catch (_) {}
-        }
-        resolve(features);
-      });
-      stream.on('error', () => resolve(features));
-    });
-
-    req.on('error', () => resolve([]));
-    req.setTimeout(30000, () => { req.destroy(); resolve(features); });
-  });
+  const features = [];
+  for (const line of text.split('\n')) {
+    if (!line.trim() || features.length >= maxFeat) continue;
+    try {
+      const feat = JSON.parse(line);
+      if (featInBbox(feat, south, west, north, east)) features.push(feat);
+    } catch (_) {}
+  }
+  return features;
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
@@ -130,7 +109,7 @@ export default async function handler(req, res) {
   const quadkeys = bboxToQuadkeys(s, w, n, e);
   const qkSet    = new Set(quadkeys);
 
-  // Step 1 — fetch CSV and collect tile URLs matching our quadkeys
+  // Step 1 — download CSV and collect matching tile URLs
   let tileUrls = [];
   try {
     const csvResp = await fetch(CSV_URL, { signal: AbortSignal.timeout(12000) });
@@ -142,7 +121,6 @@ export default async function handler(req, res) {
     const urlIdx = header.findIndex(h => h === 'url');
     if (qkIdx < 0 || urlIdx < 0)
       throw new Error(`Unknown CSV columns: ${header.join(', ')}`);
-
     for (const row of rows.slice(1)) {
       const cols = row.split(',');
       if (cols.length <= Math.max(qkIdx, urlIdx)) continue;
@@ -155,22 +133,19 @@ export default async function handler(req, res) {
       } catch (_) {}
     }
   } catch (err) {
-    return res.status(502).json({ error: err.message });
-  }
-
-  if (!tileUrls.length) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    return res.json([]);
-  }
-
-  // Step 2 — stream each tile, filter features to bbox, collect results
-  const allFeatures = [];
-  for (const url of tileUrls) {
-    if (allFeatures.length >= MAX_FEATURES) break;
-    const tf = await streamTileFeatures(url, s, w, n, e, MAX_FEATURES - allFeatures.length);
-    allFeatures.push(...tf);
+    return res.status(502).json({ error: `CSV: ${err.message}` });
   }
 
   res.setHeader('Access-Control-Allow-Origin', '*');
+  if (!tileUrls.length) return res.json([]);
+
+  // Step 2 — download, decompress, filter each tile
+  const allFeatures = [];
+  for (const url of tileUrls) {
+    if (allFeatures.length >= MAX_FEATURES) break;
+    const tf = await fetchAndFilterTile(url, s, w, n, e, MAX_FEATURES - allFeatures.length);
+    allFeatures.push(...tf);
+  }
+
   res.json(allFeatures);
 }
