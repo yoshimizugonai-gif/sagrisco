@@ -10714,34 +10714,48 @@ async function _runMSBuildingsOnline(btn, btnOrigHtml, _stepEl, _closeOvl) {
   const quadkeys = _bboxToQuadkeys(south, west, north, east);
   console.log('[MS Buildings] quadkeys:', quadkeys);
 
-  _setStep('Obtendo dataset-links.csv...');
-  const LINKS_URL = 'https://minedbuildings.z5.web.core.windows.net/global-buildings/dataset-links.csv';
-  let linksText;
-  try {
-    const r = await fetch(_proxiedUrl(LINKS_URL), { signal: AbortSignal.timeout(60000) });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    linksText = await r.text();
-  } catch(e) {
-    _abort(`<i class="fa fa-exclamation-triangle" style="color:#ef5350"></i>&nbsp;Falha ao obter dataset-links.csv: ${e.message}`);
-    return;
-  }
+  _setStep('Obtendo dataset-links...');
+  const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+  let tileUrls = [];
 
-  const rows = linksText.trim().split('\n');
-  const header = rows[0].split(',').map(h => h.trim().replace(/"/g,'').toLowerCase());
-  const qkIdx = header.findIndex(h => h.includes('quad'));
-  const urlIdx = header.findIndex(h => h === 'url');
-  if (qkIdx < 0 || urlIdx < 0) {
-    _abort(`<i class="fa fa-exclamation-triangle" style="color:#ef5350"></i>&nbsp;Colunas desconhecidas em dataset-links.csv: ${header.join(', ')}`);
-    return;
-  }
-
-  const tileUrls = [];
-  for (const row of rows.slice(1)) {
-    const cols = row.split(',');
-    if (cols.length <= Math.max(qkIdx, urlIdx)) continue;
-    const qk  = cols[qkIdx]?.trim().replace(/"/g,'');
-    const url = cols[urlIdx]?.trim().replace(/"/g,'');
-    if (quadkeys.includes(qk) && url) tileUrls.push({ qk, url });
+  if (isLocal) {
+    // localhost: proxy the full CSV through server.py
+    const LINKS_URL = 'https://minedbuildings.z5.web.core.windows.net/global-buildings/dataset-links.csv';
+    let linksText;
+    try {
+      const r = await fetch(_proxiedUrl(LINKS_URL), { signal: AbortSignal.timeout(60000) });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      linksText = await r.text();
+    } catch(e) {
+      _abort(`<i class="fa fa-exclamation-triangle" style="color:#ef5350"></i>&nbsp;Falha ao obter dataset-links.csv: ${e.message}`);
+      return;
+    }
+    const rows   = linksText.trim().split('\n');
+    const header = rows[0].split(',').map(h => h.trim().replace(/"/g,'').toLowerCase());
+    const qkIdx  = header.findIndex(h => h.includes('quad'));
+    const urlIdx = header.findIndex(h => h === 'url');
+    if (qkIdx < 0 || urlIdx < 0) {
+      _abort(`<i class="fa fa-exclamation-triangle" style="color:#ef5350"></i>&nbsp;Colunas desconhecidas em dataset-links.csv: ${header.join(', ')}`);
+      return;
+    }
+    for (const row of rows.slice(1)) {
+      const cols = row.split(',');
+      if (cols.length <= Math.max(qkIdx, urlIdx)) continue;
+      const qk  = cols[qkIdx]?.trim().replace(/"/g,'');
+      const url = cols[urlIdx]?.trim().replace(/"/g,'');
+      if (quadkeys.includes(qk) && url) tileUrls.push({ qk, url });
+    }
+  } else {
+    // Vercel: /api/links filters the CSV server-side → small JSON response
+    try {
+      const r = await fetch(`/api/links?quadkeys=${quadkeys.join(',')}`,
+        { signal: AbortSignal.timeout(15000) });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      tileUrls = await r.json();
+    } catch(e) {
+      _abort(`<i class="fa fa-exclamation-triangle" style="color:#ef5350"></i>&nbsp;Falha ao obter tile links: ${e.message}`);
+      return;
+    }
   }
   if (!tileUrls.length) {
     _abort('<i class="fa fa-exclamation-triangle" style="color:#ffa726"></i>&nbsp;Dados Microsoft Buildings não encontrados para esta região.');

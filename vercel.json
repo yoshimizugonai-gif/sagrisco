@@ -2,6 +2,9 @@
   "functions": {
     "api/proxy.js": {
       "maxDuration": 10
+    },
+    "api/links.js": {
+      "maxDuration": 10
     }
   }
 }
