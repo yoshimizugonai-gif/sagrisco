@@ -4,7 +4,10 @@
       "maxDuration": 10
     },
     "api/links.js": {
-      "maxDuration": 10
+      "maxDuration": 15
+    },
+    "api/buildings.js": {
+      "maxDuration": 60
     }
   }
 }

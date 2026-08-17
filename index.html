@@ -10451,7 +10451,8 @@ async function _runBuildingExposureAnalysis(features, sourceLabel, btn) {
     </div>`;
   const listEl = document.getElementById('excl-zone-list');
   if (listEl) listEl.insertBefore(bar, listEl.firstChild);
-  filterExposure('alert');
+  // Show all zones so the user always sees results; 'alert' would hide everything when nExposed=0
+  filterExposure(nExposed + nNearby > 0 ? 'alert' : 'all');
 }
 
 // ── Update summary bar counts from current exposureResults ───────
@@ -10740,12 +10741,12 @@ async function _runMSBuildingsOnline(btn, btnOrigHtml, _stepEl, _closeOvl) {
   const quadkeys = _bboxToQuadkeys(south, west, north, east);
   console.log('[MS Buildings] quadkeys:', quadkeys);
 
-  _setStep('Obtendo dataset-links...');
   const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-  let tileUrls = [];
+  let features = [];
 
   if (isLocal) {
-    // localhost: proxy the full CSV through server.py
+    // localhost: proxy the full CSV through server.py, then fetch each tile
+    _setStep('Obtendo dataset-links (localhost)...');
     const LINKS_URL = 'https://minedbuildings.z5.web.core.windows.net/global-buildings/dataset-links.csv';
     let linksText;
     try {
@@ -10764,6 +10765,7 @@ async function _runMSBuildingsOnline(btn, btnOrigHtml, _stepEl, _closeOvl) {
       _abort(`<i class="fa fa-exclamation-triangle" style="color:#ef5350"></i>&nbsp;Colunas desconhecidas em dataset-links.csv: ${header.join(', ')}`);
       return;
     }
+    const tileUrls = [];
     for (const row of rows.slice(1)) {
       const cols = row.split(',');
       if (cols.length <= Math.max(qkIdx, urlIdx)) continue;
@@ -10771,33 +10773,35 @@ async function _runMSBuildingsOnline(btn, btnOrigHtml, _stepEl, _closeOvl) {
       const url = cols[urlIdx]?.trim().replace(/"/g,'');
       if (quadkeys.includes(qk) && url) tileUrls.push({ qk, url });
     }
-  } else {
-    // Vercel: /api/links filters the CSV server-side → small JSON response
-    try {
-      const r = await fetch(`/api/links?quadkeys=${quadkeys.join(',')}`,
-        { signal: AbortSignal.timeout(15000) });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      tileUrls = await r.json();
-    } catch(e) {
-      _abort(`<i class="fa fa-exclamation-triangle" style="color:#ef5350"></i>&nbsp;Falha ao obter tile links: ${e.message}`);
+    if (!tileUrls.length) {
+      _abort('<i class="fa fa-exclamation-triangle" style="color:#ffa726"></i>&nbsp;Dados Microsoft Buildings não encontrados para esta região.');
       return;
     }
-  }
-  if (!tileUrls.length) {
-    _abort('<i class="fa fa-exclamation-triangle" style="color:#ffa726"></i>&nbsp;Dados Microsoft Buildings não encontrados para esta região.');
-    return;
-  }
-
-  let features = [];
-  for (let i = 0; i < tileUrls.length; i++) {
-    const { qk, url } = tileUrls[i];
-    _setStep(`Baixando tile ${i+1}/${tileUrls.length}...`);
+    for (let i = 0; i < tileUrls.length; i++) {
+      const { qk, url } = tileUrls[i];
+      _setStep(`Baixando tile ${i+1}/${tileUrls.length}...`);
+      try {
+        const tf = await _fetchMSTile(url, south, west, north, east);
+        features = features.concat(tf);
+        console.log(`[MS Buildings] tile ${qk}: ${tf.length} edificações`);
+      } catch(e) {
+        console.warn(`[MS Buildings] tile ${qk} falhou:`, e.message);
+      }
+    }
+  } else {
+    // Vercel: /api/buildings streams each tile server-side, returns only bbox features
+    _setStep('Obtendo edificações (processando no servidor)...');
     try {
-      const tf = await _fetchMSTile(url, south, west, north, east);
-      features = features.concat(tf);
-      console.log(`[MS Buildings] tile ${qk}: ${tf.length} edificações`);
+      const r = await fetch(
+        `/api/buildings?south=${south.toFixed(6)}&west=${west.toFixed(6)}&north=${north.toFixed(6)}&east=${east.toFixed(6)}`,
+        { signal: AbortSignal.timeout(58000) }
+      );
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      features = await r.json();
+      console.log(`[MS Buildings] api/buildings → ${features.length} edificações`);
     } catch(e) {
-      console.warn(`[MS Buildings] tile ${qk} falhou:`, e.message);
+      _abort(`<i class="fa fa-exclamation-triangle" style="color:#ef5350"></i>&nbsp;Falha ao obter edificações: ${e.message}`);
+      return;
     }
   }
 
