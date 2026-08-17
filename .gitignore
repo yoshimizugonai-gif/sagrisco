@@ -1,0 +1,22 @@
+# Large binary files — not needed for web deployment
+dem_ortho/
+ms_bulding_footprints/
+manual_gides/
+*.tif
+*.tiff
+
+# GeoJSON duplicates (JS versions are used instead)
+barbacena_buildings.geojson
+nova_friburgo_buildings.geojson
+
+# QGIS project files
+*.qmd
+*.qgs
+
+# Local-only scripts
+start_server.bat
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
