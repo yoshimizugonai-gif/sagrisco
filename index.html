@@ -580,9 +580,149 @@ html,body{height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,sans-seri
   #carta-page-wrapper{display:block!important;padding:0!important}
   #carta-print-page{transform:none!important;box-shadow:none!important;width:420mm!important;height:297mm!important;overflow:hidden!important}
 }
+
+/* ── AUTENTICAÇÃO ────────────────────────────────────────── */
+#auth-overlay{position:fixed;inset:0;z-index:99999;background:#0a1622;
+  display:flex;align-items:center;justify-content:center}
+#auth-overlay.hidden{display:none}
+.auth-box{background:#111e2e;border:1px solid rgba(255,255,255,.1);border-radius:12px;
+  padding:40px 44px;width:340px;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,.7)}
+.auth-logo{font-size:26px;font-weight:800;color:#fff;letter-spacing:1px;margin-bottom:4px}
+.auth-logo span{color:#42a5f5}
+.auth-sub{font-size:13px;color:#37474f;margin-bottom:28px;line-height:1.6}
+.auth-input{width:100%;padding:11px 14px;background:#0d1b2a;
+  border:1px solid rgba(255,255,255,.15);border-radius:7px;color:#e0e0e0;
+  font-size:15px;outline:none;box-sizing:border-box;transition:border-color .2s}
+.auth-input:focus{border-color:#1565c0}
+.auth-btn{width:100%;margin-top:14px;padding:12px;background:#1565c0;color:#fff;
+  border:none;border-radius:7px;font-size:15px;font-weight:700;cursor:pointer;
+  transition:background .15s}
+.auth-btn:hover{background:#1976d2}
+.auth-btn:active{background:#0d47a1}
+.auth-err{color:#ef5350;font-size:13px;margin-top:10px;min-height:18px}
+.auth-footer{font-size:11px;color:#263238;margin-top:22px;line-height:1.6}
+@keyframes auth-shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+.auth-shake{animation:auth-shake .4s ease}
+
+/* ══ ACESSIBILIDADE: Tamanhos de fonte elevados ══
+   Case A = padrão elevado (sempre ativo)
+   Case B = A+ via body.fs-large (botão no topo)
+   Área de impressão da Carta usa pt — não afetada
+   ════════════════════════════════════════════════ */
+#tb-font-btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);
+  border-radius:5px;padding:3px 10px;color:#90a4ae;cursor:pointer;font-size:14px;
+  font-weight:800;white-space:nowrap;flex-shrink:0;transition:all .15s;line-height:1}
+#tb-font-btn:hover{background:rgba(255,255,255,.14);color:#b0bec5}
+body.fs-large #tb-font-btn{background:rgba(66,165,245,.18);border-color:rgba(66,165,245,.5);color:#42a5f5}
+
+/* Case A: ≤10px → 12px */
+.lp-step-dot,.tb-sub,.tb-jica,.acc-title .acc-badge,.resolution-badge,
+.map-leg-sec-title,.ficha-title,.hazard-badge,.carta-type-btn .ctb-desc{font-size:12px!important}
+.lp-step-lbl{font-size:10px!important}
+
+/* Case A: 11px → 13px */
+.zone-zoom-btn,.edit-dd-item,.radio-meta,.map-leg-hd-label,.map-leg-toggle,
+.map-leg-item,.tb-user-r,.stage-tab .st-num,.module-tab .mt-num,
+.carta-tab,.carta-edit-btn,.carta-type-header,.carta-type-btn,
+.carta-type-btn .ctb-label,.carta-type-btn .ctb-icon,.lp-tab,
+.s2-card-meta,.h-table,.exp-badge,.mp-badge,.prog-ttl,.res-card-ttl,
+.res-stat-lbl,.res-grid-lbl,.s2-sector-ttl,.indicio-label,
+.edit-toolbar-hd,.src-group-ttl,.zone-delete-confirm button{font-size:13px!important}
+
+/* Case A: 12px → 14px */
+.acc-title,.acc-arrow,.leg-item,.status-row,.aoi-stat,.main-btn,
+.carta-btn-print,.carta-btn-pdf,.carta-btn-close,.eb,.import-lbl,
+.lpop p,.map-search-item,.risk-result-row,.rp-head h3,.s2-card-id,
+.mp-desc,.etapa-prog,.sector-slope,.exp-filter-btn{font-size:14px!important}
+
+/* Case A: 13px → 14px (topbar — espaço limitado) */
+.stage-tab,.module-tab,.tb-munic,.tb-user-n{font-size:14px!important}
+
+/* Case A: 13px → 15px (painéis e modais) */
+.toggle-row,.radio-name,.proc-step,.proc-pct,.lock-msg,
+.map-search-ctrl input,.edit-toolbar-zone,.lpop h4{font-size:15px!important}
+.lp-tab i{font-size:15px!important}
+
+/* Case A: inline style 上書き（cartaはpt単位のため非対象） */
+*[style*="font-size:9px"],*[style*="font-size:9.5px"],
+*[style*="font-size:10px"]{font-size:12px!important}
+*[style*="font-size:11px"]{font-size:13px!important}
+*[style*="font-size:12px"]{font-size:14px!important}
+*[style*="font-size:13px"]{font-size:15px!important}
+
+/* Case B: A+ (body.fs-large) — さらに +2px */
+body.fs-large .lp-step-dot,body.fs-large .tb-sub,body.fs-large .tb-jica,
+body.fs-large .acc-title .acc-badge,body.fs-large .resolution-badge,
+body.fs-large .map-leg-sec-title,body.fs-large .ficha-title,
+body.fs-large .hazard-badge,body.fs-large .carta-type-btn .ctb-desc{font-size:14px!important}
+body.fs-large .lp-step-lbl{font-size:12px!important}
+
+body.fs-large .zone-zoom-btn,body.fs-large .edit-dd-item,body.fs-large .radio-meta,
+body.fs-large .map-leg-hd-label,body.fs-large .map-leg-toggle,body.fs-large .map-leg-item,
+body.fs-large .tb-user-r,body.fs-large .stage-tab .st-num,body.fs-large .module-tab .mt-num,
+body.fs-large .carta-tab,body.fs-large .carta-edit-btn,body.fs-large .carta-type-header,
+body.fs-large .carta-type-btn,body.fs-large .carta-type-btn .ctb-label,
+body.fs-large .carta-type-btn .ctb-icon,body.fs-large .lp-tab,
+body.fs-large .s2-card-meta,body.fs-large .h-table,body.fs-large .exp-badge,
+body.fs-large .mp-badge,body.fs-large .prog-ttl,body.fs-large .res-card-ttl,
+body.fs-large .res-stat-lbl,body.fs-large .res-grid-lbl,
+body.fs-large .s2-sector-ttl,body.fs-large .indicio-label,
+body.fs-large .edit-toolbar-hd,body.fs-large .src-group-ttl,
+body.fs-large .zone-delete-confirm button{font-size:15px!important}
+
+body.fs-large .acc-title,body.fs-large .acc-arrow,body.fs-large .leg-item,
+body.fs-large .status-row,body.fs-large .aoi-stat,body.fs-large .main-btn,
+body.fs-large .carta-btn-print,body.fs-large .carta-btn-pdf,
+body.fs-large .carta-btn-close,body.fs-large .eb,body.fs-large .import-lbl,
+body.fs-large .lpop p,body.fs-large .map-search-item,body.fs-large .risk-result-row,
+body.fs-large .rp-head h3,body.fs-large .s2-card-id,body.fs-large .mp-desc,
+body.fs-large .etapa-prog,body.fs-large .sector-slope,
+body.fs-large .exp-filter-btn{font-size:16px!important}
+
+body.fs-large .stage-tab,body.fs-large .module-tab,
+body.fs-large .tb-munic,body.fs-large .tb-user-n{font-size:16px!important}
+
+body.fs-large .toggle-row,body.fs-large .radio-name,body.fs-large .proc-step,
+body.fs-large .proc-pct,body.fs-large .lock-msg,body.fs-large .map-search-ctrl input,
+body.fs-large .edit-toolbar-zone,body.fs-large .lpop h4{font-size:17px!important}
+body.fs-large .lp-tab i{font-size:17px!important}
+
+body.fs-large *[style*="font-size:9px"],body.fs-large *[style*="font-size:9.5px"],
+body.fs-large *[style*="font-size:10px"]{font-size:14px!important}
+body.fs-large *[style*="font-size:11px"]{font-size:15px!important}
+body.fs-large *[style*="font-size:12px"]{font-size:16px!important}
+body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
 </style>
 </head>
 <body>
+
+<!-- ── AUTENTICAÇÃO ── -->
+<div id="auth-overlay">
+  <div class="auth-box">
+    <div class="auth-logo">SAGRIS<span>CO</span></div>
+    <div class="auth-sub">Sistema de Apoio à Gestão de Risco<br>Movimentos Gravitacionais de Massa</div>
+    <input id="auth-pw" class="auth-input" type="password" placeholder="Senha de acesso"
+      onkeydown="if(event.key==='Enter')_authLogin()">
+    <button class="auth-btn" onclick="_authLogin()">
+      <i class="fa fa-unlock fa-sm"></i>&nbsp;Entrar
+    </button>
+    <div class="auth-err" id="auth-err"></div>
+    <div class="auth-footer">JICA-BIZ / CPRM — uso restrito</div>
+  </div>
+</div>
+<script>
+(function(){
+  const _H = '55d8a55b4f93369dfa446af03cc6362f9d593e939e049cb15d589b9ca8a21a6d';
+  try {
+    const s = JSON.parse(localStorage.getItem('sagrisco_session') || '{}');
+    if (s.hash === _H && s.exp > Date.now()) {
+      document.getElementById('auth-overlay').classList.add('hidden');
+      return;
+    }
+  } catch(e) {}
+  setTimeout(() => { const el = document.getElementById('auth-pw'); if (el) el.focus(); }, 100);
+})();
+</script>
 
 <!-- TOPBAR -->
 <div id="topbar">
@@ -632,6 +772,8 @@ html,body{height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,sans-seri
     </button>
   </div>
   <input type="hidden" id="munic-sel" value="barbacena">
+  <div class="tb-div"></div>
+  <button id="tb-font-btn" onclick="_toggleFontSize()" title="Alternar tamanho da fonte (Padrão / A+)">A+</button>
   <div class="tb-user">
     <div class="tb-user-n"><i class="fa fa-user-shield fa-xs"></i>&nbsp;Gustavo</div>
     <div class="tb-user-r">Geólogo — CPRM / Sup. MG</div>
@@ -1415,6 +1557,48 @@ if (window.SAGRISCO_BUILDINGS && !window.SAGRISCO_BUILDINGS_BARBACENA)
 <script src="nova_friburgo_buildings.js" onerror="void(0)"></script>
 <script>
 'use strict';
+// ── AUTENTICAÇÃO ──────────────────────────────────────────────
+const _PW_HASH = '55d8a55b4f93369dfa446af03cc6362f9d593e939e049cb15d589b9ca8a21a6d'; // SHA-256('CPRM2026')
+// パスワード変更時: ブラウザコンソールで以下を実行しハッシュを取得して_PW_HASHを更新
+// crypto.subtle.digest('SHA-256',new TextEncoder().encode('新パスワード')).then(b=>console.log([...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')))
+async function _authLogin() {
+  const pw  = document.getElementById('auth-pw').value;
+  const err = document.getElementById('auth-err');
+  if (!pw) { err.textContent = 'Digite a senha.'; return; }
+  try {
+    const buf  = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
+    const hash = [...new Uint8Array(buf)].map(x => x.toString(16).padStart(2,'0')).join('');
+    if (hash === _PW_HASH) {
+      try {
+        localStorage.setItem('sagrisco_session', JSON.stringify({
+          hash, exp: Date.now() + 7 * 24 * 3600 * 1000
+        }));
+      } catch(e) {}
+      document.getElementById('auth-overlay').classList.add('hidden');
+      document.getElementById('auth-pw').value = '';
+      err.textContent = '';
+    } else {
+      err.textContent = 'Senha incorreta.';
+      const box = document.querySelector('.auth-box');
+      if (box) { box.classList.remove('auth-shake'); void box.offsetWidth; box.classList.add('auth-shake'); }
+      document.getElementById('auth-pw').value = '';
+      document.getElementById('auth-pw').focus();
+    }
+  } catch(e) {
+    document.getElementById('auth-err').textContent = 'Erro ao verificar senha.';
+  }
+}
+
+// フォントサイズ設定をlocalStorageから復元
+(function(){
+  try {
+    if (localStorage.getItem('sagrisco_font_large')) {
+      document.body.classList.add('fs-large');
+      const btn = document.getElementById('tb-font-btn');
+      if (btn) btn.textContent = 'A';
+    }
+  } catch(e) {}
+})();
 // ================================================================
 //  SAGRISCO v0.2 — Etapa 1: Banco de Dados & AOI
 //  GIDES v1.1 — Deslizamento Planar
@@ -3165,6 +3349,13 @@ function _clearPesquisaResults() {
   analysisRun = false;
   aw3dFileBuffer = null; aw3d05FileBuffer = null; aw3d25FileBuffer = null; ibgeMdeBuffer = null;
   _syncResearchTab();
+}
+
+function _toggleFontSize() {
+  const large = document.body.classList.toggle('fs-large');
+  const btn = document.getElementById('tb-font-btn');
+  if (btn) btn.textContent = large ? 'A' : 'A+';
+  try { localStorage.setItem('sagrisco_font_large', large ? '1' : ''); } catch(e) {}
 }
 
 function _homeReload() {
@@ -10298,6 +10489,22 @@ function _selectBuildingsForAOI() {
 // ── Shared analysis engine ──────────────────────────────────────
 async function _runBuildingExposureAnalysis(features, sourceLabel, btn) {
   _exposureSourceLabel = sourceLabel;
+  // ── A0. AOI bboxフィルタ — マップ描画・解析を軽量化 ─────────────
+  if (aoiLayer) {
+    const b = aoiLayer.getBounds();
+    const [aoiS, aoiN, aoiW, aoiE] = [b.getSouth(), b.getNorth(), b.getWest(), b.getEast()];
+    const before = features.length;
+    features = features.filter(f => {
+      const ring = f.geometry?.type === 'Polygon'
+        ? f.geometry.coordinates[0]
+        : f.geometry?.coordinates?.[0]?.[0];
+      if (!ring?.length) return false;
+      const lons = ring.map(c => c[0]), lats = ring.map(c => c[1]);
+      return !(Math.max(...lons) < aoiW || Math.min(...lons) > aoiE ||
+               Math.max(...lats) < aoiS || Math.min(...lats) > aoiN);
+    });
+    console.log(`[Exposure] AOI bbox filter: ${before} → ${features.length} edificações`);
+  }
   // ── A. Add buildings to map ────────────────────────────────────
   buildingGeoJSON = { type:'FeatureCollection', features };
   try {
