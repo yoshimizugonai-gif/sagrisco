@@ -1043,10 +1043,22 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
                 <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:4px;padding:5px">
                   <div style="font-size:9px;color:#546e7a;margin-bottom:4px;font-weight:600;letter-spacing:.3px"><i class="fa fa-cloud fa-xs"></i> API (auto)</div>
                   <div style="display:flex;flex-direction:column;gap:3px">
-                    <button class="cmp-src-btn" id="cmp-a-src-srtm" onclick="_setCmpSrc('a','srtm')" style="width:100%;justify-content:center">SRTM 30m</button>
-                    <button class="cmp-src-btn" id="cmp-a-src-copernicus" onclick="_setCmpSrc('a','copernicus')" style="width:100%;justify-content:center">Copernicus</button>
-                    <button class="cmp-src-btn" id="cmp-a-src-aw3d30" onclick="_setCmpSrc('a','aw3d30')" style="width:100%;justify-content:center">AW3D30</button>
-                    <button class="cmp-src-btn" id="cmp-a-src-ibge_mde" onclick="_setCmpSrc('a','ibge_mde')" style="width:100%;justify-content:center">IBGE MDE</button>
+                    <div style="display:flex;gap:3px;align-items:center">
+                      <button class="cmp-src-btn" id="cmp-a-src-srtm" onclick="_setCmpSrc('a','srtm')" style="flex:1">SRTM 30m</button>
+                      <button class="dem-info-btn" onmouseenter="_showDEMInfoHover('srtm',this,event)" onmouseleave="_hideDEMInfoDelay()" onclick="showDEMInfo('srtm',this,event)" title="Detalhes"><i class="fa fa-info-circle"></i></button>
+                    </div>
+                    <div style="display:flex;gap:3px;align-items:center">
+                      <button class="cmp-src-btn" id="cmp-a-src-copernicus" onclick="_setCmpSrc('a','copernicus')" style="flex:1">Copernicus</button>
+                      <button class="dem-info-btn" onmouseenter="_showDEMInfoHover('copernicus',this,event)" onmouseleave="_hideDEMInfoDelay()" onclick="showDEMInfo('copernicus',this,event)" title="Detalhes"><i class="fa fa-info-circle"></i></button>
+                    </div>
+                    <div style="display:flex;gap:3px;align-items:center">
+                      <button class="cmp-src-btn" id="cmp-a-src-aw3d30" onclick="_setCmpSrc('a','aw3d30')" style="flex:1">AW3D30</button>
+                      <button class="dem-info-btn" onmouseenter="_showDEMInfoHover('aw3d_free',this,event)" onmouseleave="_hideDEMInfoDelay()" onclick="showDEMInfo('aw3d_free',this,event)" title="Detalhes"><i class="fa fa-info-circle"></i></button>
+                    </div>
+                    <div style="display:flex;gap:3px;align-items:center">
+                      <button class="cmp-src-btn" id="cmp-a-src-ibge_mde" onclick="_setCmpSrc('a','ibge_mde')" style="flex:1">IBGE MDE</button>
+                      <button class="dem-info-btn" onmouseenter="_showDEMInfoHover('ibge_mde',this,event)" onmouseleave="_hideDEMInfoDelay()" onclick="showDEMInfo('ibge_mde',this,event)" title="Detalhes"><i class="fa fa-info-circle"></i></button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1059,22 +1071,10 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
                   <input type="file" id="cmp-a-file" accept=".tif,.tiff" onchange="onCmpAImport(event)" style="display:none">
                 </div>
               </div>
-              <div id="cmp-a-sub-srtm" style="display:none;font-size:10px;color:#78909c;padding:3px 0;line-height:1.6">
-                <div style="display:flex;align-items:flex-start;gap:4px">
-                  <span><i class="fa fa-globe fa-xs" style="color:#42a5f5"></i> SRTM 30m (AWS Terrain Tiles) — sem configuração adicional.<br>
-                  <span style="color:#546e7a">AOI derivada do outro slot ou definida manualmente.</span></span>
-                  <button class="dem-info-btn" onclick="showDEMInfo('srtm',this,event)" title="Detalhes" style="flex-shrink:0;margin-top:1px"><i class="fa fa-info-circle"></i></button>
-                </div>
-              </div>
-              <div id="cmp-a-sub-copernicus" style="display:none">
-                <div style="font-size:10px;color:#78909c;line-height:1.5;display:flex;align-items:center;gap:4px"><span><i class="fa fa-satellite fa-xs" style="color:#42a5f5"></i> Copernicus GLO-30 via OpenTopography</span><button class="dem-info-btn" onclick="showDEMInfo('copernicus',this,event)" title="Detalhes"><i class="fa fa-info-circle"></i></button></div>
-              </div>
-              <div id="cmp-a-sub-aw3d30" style="display:none">
-                <div style="font-size:10px;color:#78909c;line-height:1.5;display:flex;align-items:center;gap:4px"><span><i class="fa fa-satellite fa-xs" style="color:#42a5f5"></i> AW3D30 JAXA 30m via OpenTopography</span><button class="dem-info-btn" onclick="showDEMInfo('aw3d_free',this,event)" title="Detalhes"><i class="fa fa-info-circle"></i></button></div>
-              </div>
-              <div id="cmp-a-sub-ibge_mde" style="display:none">
-                <div style="font-size:10px;color:#78909c;line-height:1.5;display:flex;align-items:center;gap:4px"><span><i class="fa fa-mountain fa-xs" style="color:#66bb6a"></i> IBGE MDE ~20m (RJ/SC/SP/MG/GO) — via /api/ibge_dem</span><button class="dem-info-btn" onclick="showDEMInfo('ibge_mde',this,event)" title="Detalhes"><i class="fa fa-info-circle"></i></button></div>
-              </div>
+              <div id="cmp-a-sub-srtm" style="display:none"></div>
+              <div id="cmp-a-sub-copernicus" style="display:none"></div>
+              <div id="cmp-a-sub-aw3d30" style="display:none"></div>
+              <div id="cmp-a-sub-ibge_mde" style="display:none"></div>
             </div>
 
             <!-- Divider arrow -->
@@ -1093,10 +1093,22 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
                 <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:4px;padding:5px">
                   <div style="font-size:9px;color:#546e7a;margin-bottom:4px;font-weight:600;letter-spacing:.3px"><i class="fa fa-cloud fa-xs"></i> API (auto)</div>
                   <div style="display:flex;flex-direction:column;gap:3px">
-                    <button class="cmp-src-btn" id="cmp-b-src-srtm" onclick="_setCmpSrc('b','srtm')" style="width:100%;justify-content:center">SRTM 30m</button>
-                    <button class="cmp-src-btn" id="cmp-b-src-copernicus" onclick="_setCmpSrc('b','copernicus')" style="width:100%;justify-content:center">Copernicus</button>
-                    <button class="cmp-src-btn" id="cmp-b-src-aw3d30" onclick="_setCmpSrc('b','aw3d30')" style="width:100%;justify-content:center">AW3D30</button>
-                    <button class="cmp-src-btn" id="cmp-b-src-ibge_mde" onclick="_setCmpSrc('b','ibge_mde')" style="width:100%;justify-content:center">IBGE MDE</button>
+                    <div style="display:flex;gap:3px;align-items:center">
+                      <button class="cmp-src-btn" id="cmp-b-src-srtm" onclick="_setCmpSrc('b','srtm')" style="flex:1">SRTM 30m</button>
+                      <button class="dem-info-btn" onmouseenter="_showDEMInfoHover('srtm',this,event)" onmouseleave="_hideDEMInfoDelay()" onclick="showDEMInfo('srtm',this,event)" title="Detalhes"><i class="fa fa-info-circle"></i></button>
+                    </div>
+                    <div style="display:flex;gap:3px;align-items:center">
+                      <button class="cmp-src-btn" id="cmp-b-src-copernicus" onclick="_setCmpSrc('b','copernicus')" style="flex:1">Copernicus</button>
+                      <button class="dem-info-btn" onmouseenter="_showDEMInfoHover('copernicus',this,event)" onmouseleave="_hideDEMInfoDelay()" onclick="showDEMInfo('copernicus',this,event)" title="Detalhes"><i class="fa fa-info-circle"></i></button>
+                    </div>
+                    <div style="display:flex;gap:3px;align-items:center">
+                      <button class="cmp-src-btn" id="cmp-b-src-aw3d30" onclick="_setCmpSrc('b','aw3d30')" style="flex:1">AW3D30</button>
+                      <button class="dem-info-btn" onmouseenter="_showDEMInfoHover('aw3d_free',this,event)" onmouseleave="_hideDEMInfoDelay()" onclick="showDEMInfo('aw3d_free',this,event)" title="Detalhes"><i class="fa fa-info-circle"></i></button>
+                    </div>
+                    <div style="display:flex;gap:3px;align-items:center">
+                      <button class="cmp-src-btn" id="cmp-b-src-ibge_mde" onclick="_setCmpSrc('b','ibge_mde')" style="flex:1">IBGE MDE</button>
+                      <button class="dem-info-btn" onmouseenter="_showDEMInfoHover('ibge_mde',this,event)" onmouseleave="_hideDEMInfoDelay()" onclick="showDEMInfo('ibge_mde',this,event)" title="Detalhes"><i class="fa fa-info-circle"></i></button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1109,22 +1121,10 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
                   <input type="file" id="cmp-b-file" accept=".tif,.tiff" onchange="onCmpBImport(event)" style="display:none">
                 </div>
               </div>
-              <div id="cmp-b-sub-srtm" style="display:none;font-size:10px;color:#78909c;padding:3px 0;line-height:1.6">
-                <div style="display:flex;align-items:flex-start;gap:4px">
-                  <span><i class="fa fa-globe fa-xs" style="color:#42a5f5"></i> SRTM 30m (AWS Terrain Tiles) — sem configuração adicional.<br>
-                  <span style="color:#546e7a">AOI derivada do outro slot ou definida manualmente.</span></span>
-                  <button class="dem-info-btn" onclick="showDEMInfo('srtm',this,event)" title="Detalhes" style="flex-shrink:0;margin-top:1px"><i class="fa fa-info-circle"></i></button>
-                </div>
-              </div>
-              <div id="cmp-b-sub-copernicus" style="display:none">
-                <div style="font-size:10px;color:#78909c;line-height:1.5;display:flex;align-items:center;gap:4px"><span><i class="fa fa-satellite fa-xs" style="color:#42a5f5"></i> Copernicus GLO-30 via OpenTopography</span><button class="dem-info-btn" onclick="showDEMInfo('copernicus',this,event)" title="Detalhes"><i class="fa fa-info-circle"></i></button></div>
-              </div>
-              <div id="cmp-b-sub-aw3d30" style="display:none">
-                <div style="font-size:10px;color:#78909c;line-height:1.5;display:flex;align-items:center;gap:4px"><span><i class="fa fa-satellite fa-xs" style="color:#42a5f5"></i> AW3D30 JAXA 30m via OpenTopography</span><button class="dem-info-btn" onclick="showDEMInfo('aw3d_free',this,event)" title="Detalhes"><i class="fa fa-info-circle"></i></button></div>
-              </div>
-              <div id="cmp-b-sub-ibge_mde" style="display:none">
-                <div style="font-size:10px;color:#78909c;line-height:1.5;display:flex;align-items:center;gap:4px"><span><i class="fa fa-mountain fa-xs" style="color:#66bb6a"></i> IBGE MDE ~20m (RJ/SC/SP/MG/GO) — via /api/ibge_dem</span><button class="dem-info-btn" onclick="showDEMInfo('ibge_mde',this,event)" title="Detalhes"><i class="fa fa-info-circle"></i></button></div>
-              </div>
+              <div id="cmp-b-sub-srtm" style="display:none"></div>
+              <div id="cmp-b-sub-copernicus" style="display:none"></div>
+              <div id="cmp-b-sub-aw3d30" style="display:none"></div>
+              <div id="cmp-b-sub-ibge_mde" style="display:none"></div>
             </div>
 
             <!-- AOI panel (shown when both slots are APIs) -->
@@ -12268,6 +12268,19 @@ function showCmpInfo(key, btn, e) {
   popup.style.top  = top  + 'px';
 }
 
+let _demInfoHideTimer = null;
+function _showDEMInfoHover(src, btn, e) {
+  clearTimeout(_demInfoHideTimer);
+  showDEMInfo(src, btn, e);
+}
+function _hideDEMInfoDelay() {
+  _demInfoHideTimer = setTimeout(() => {
+    const p = document.getElementById('dem-info-popup');
+    if (p) p.style.display = 'none';
+  }, 250);
+}
+function _cancelDEMInfoHide() { clearTimeout(_demInfoHideTimer); }
+
 function showDEMInfo(src, btn, e) {
   e.stopPropagation();
   const popup = document.getElementById('dem-info-popup');
@@ -12303,7 +12316,7 @@ document.addEventListener('click', function(e) {
 </script>
 
 <!-- DEM info floating popup -->
-<div id="dem-info-popup"></div>
+<div id="dem-info-popup" onmouseenter="_cancelDEMInfoHide()" onmouseleave="_hideDEMInfoDelay()"></div>
 
 <!-- ── Carta GIDES Print Overlay ───────────────────────────── -->
 <div id="carta-overlay">
