@@ -1035,12 +1035,20 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
             <!-- Panel A -->
             <div style="background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.07);border-radius:5px;padding:8px;margin-bottom:6px">
               <div style="font-size:10px;color:#78909c;margin-bottom:6px;font-weight:600;letter-spacing:.3px">A — REFERÊNCIA</div>
-              <div style="display:flex;gap:4px;margin-bottom:7px;flex-wrap:wrap">
-                <button class="cmp-src-btn active" id="cmp-a-src-geotiff" onclick="_setCmpSrc('a','geotiff')"><i class="fa fa-file-alt fa-xs"></i> GeoTIFF</button>
-                <button class="cmp-src-btn" id="cmp-a-src-srtm" onclick="_setCmpSrc('a','srtm')">SRTM 30m</button>
-                <button class="cmp-src-btn" id="cmp-a-src-copernicus" onclick="_setCmpSrc('a','copernicus')">Copernicus</button>
-                <button class="cmp-src-btn" id="cmp-a-src-aw3d30" onclick="_setCmpSrc('a','aw3d30')">AW3D30</button>
-                <button class="cmp-src-btn" id="cmp-a-src-ibge_mde" onclick="_setCmpSrc('a','ibge_mde')">IBGE MDE</button>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:7px">
+                <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:4px;padding:5px">
+                  <div style="font-size:9px;color:#546e7a;margin-bottom:4px;font-weight:600;letter-spacing:.3px"><i class="fa fa-folder-open fa-xs"></i> Arquivo</div>
+                  <button class="cmp-src-btn active" id="cmp-a-src-geotiff" onclick="_setCmpSrc('a','geotiff')" style="width:100%;justify-content:center"><i class="fa fa-file-alt fa-xs"></i> GeoTIFF</button>
+                </div>
+                <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:4px;padding:5px">
+                  <div style="font-size:9px;color:#546e7a;margin-bottom:4px;font-weight:600;letter-spacing:.3px"><i class="fa fa-cloud fa-xs"></i> API (auto)</div>
+                  <div style="display:flex;flex-direction:column;gap:3px">
+                    <button class="cmp-src-btn" id="cmp-a-src-srtm" onclick="_setCmpSrc('a','srtm')" style="width:100%;justify-content:center">SRTM 30m</button>
+                    <button class="cmp-src-btn" id="cmp-a-src-copernicus" onclick="_setCmpSrc('a','copernicus')" style="width:100%;justify-content:center">Copernicus</button>
+                    <button class="cmp-src-btn" id="cmp-a-src-aw3d30" onclick="_setCmpSrc('a','aw3d30')" style="width:100%;justify-content:center">AW3D30</button>
+                    <button class="cmp-src-btn" id="cmp-a-src-ibge_mde" onclick="_setCmpSrc('a','ibge_mde')" style="width:100%;justify-content:center">IBGE MDE</button>
+                  </div>
+                </div>
               </div>
               <div id="cmp-a-sub-geotiff">
                 <div id="cmp-a-type-row" style="font-size:11px;color:#546e7a;margin-bottom:7px;font-style:italic">
@@ -1077,12 +1085,20 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
             <!-- Panel B -->
             <div style="background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.07);border-radius:5px;padding:8px;margin-bottom:8px">
               <div style="font-size:10px;color:#78909c;margin-bottom:6px;font-weight:600;letter-spacing:.3px">B — PROPOSTA</div>
-              <div style="display:flex;gap:4px;margin-bottom:7px;flex-wrap:wrap">
-                <button class="cmp-src-btn active" id="cmp-b-src-geotiff" onclick="_setCmpSrc('b','geotiff')"><i class="fa fa-file-alt fa-xs"></i> GeoTIFF</button>
-                <button class="cmp-src-btn" id="cmp-b-src-srtm" onclick="_setCmpSrc('b','srtm')">SRTM 30m</button>
-                <button class="cmp-src-btn" id="cmp-b-src-copernicus" onclick="_setCmpSrc('b','copernicus')">Copernicus</button>
-                <button class="cmp-src-btn" id="cmp-b-src-aw3d30" onclick="_setCmpSrc('b','aw3d30')">AW3D30</button>
-                <button class="cmp-src-btn" id="cmp-b-src-ibge_mde" onclick="_setCmpSrc('b','ibge_mde')">IBGE MDE</button>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:7px">
+                <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:4px;padding:5px">
+                  <div style="font-size:9px;color:#546e7a;margin-bottom:4px;font-weight:600;letter-spacing:.3px"><i class="fa fa-folder-open fa-xs"></i> Arquivo</div>
+                  <button class="cmp-src-btn active" id="cmp-b-src-geotiff" onclick="_setCmpSrc('b','geotiff')" style="width:100%;justify-content:center"><i class="fa fa-file-alt fa-xs"></i> GeoTIFF</button>
+                </div>
+                <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:4px;padding:5px">
+                  <div style="font-size:9px;color:#546e7a;margin-bottom:4px;font-weight:600;letter-spacing:.3px"><i class="fa fa-cloud fa-xs"></i> API (auto)</div>
+                  <div style="display:flex;flex-direction:column;gap:3px">
+                    <button class="cmp-src-btn" id="cmp-b-src-srtm" onclick="_setCmpSrc('b','srtm')" style="width:100%;justify-content:center">SRTM 30m</button>
+                    <button class="cmp-src-btn" id="cmp-b-src-copernicus" onclick="_setCmpSrc('b','copernicus')" style="width:100%;justify-content:center">Copernicus</button>
+                    <button class="cmp-src-btn" id="cmp-b-src-aw3d30" onclick="_setCmpSrc('b','aw3d30')" style="width:100%;justify-content:center">AW3D30</button>
+                    <button class="cmp-src-btn" id="cmp-b-src-ibge_mde" onclick="_setCmpSrc('b','ibge_mde')" style="width:100%;justify-content:center">IBGE MDE</button>
+                  </div>
+                </div>
               </div>
               <div id="cmp-b-sub-geotiff">
                 <div id="cmp-b-type-row" style="font-size:11px;color:#546e7a;margin-bottom:7px;font-style:italic">
