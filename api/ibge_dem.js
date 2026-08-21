@@ -98,7 +98,7 @@ export default async function handler(req, res) {
   const tiles = findTiles(reqS, reqW, reqN, reqE);
   if (!tiles.length)
     return res.status(404).json({
-      error: 'IBGE MDE: データなし。対応地域: RJ州、SC州南部、SP/MG/GO州の一部のみ。'
+      error: 'IBGE MDE: sem dados para esta área. Cobertura disponível: estado do RJ, sul do SC e partes de SP/MG/GO.'
     });
 
   const selected = tiles.slice(0, MAX_TILES);
