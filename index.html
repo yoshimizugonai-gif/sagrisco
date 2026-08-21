@@ -911,7 +911,15 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
               <button class="dem-info-btn" onclick="showDEMInfo('copernicus',this,event)" title="Detalhes"><i class="fa fa-info-circle"></i></button>
             </label>
 
-            <!-- OpenTopography API key — required for real Copernicus GLO-30 data -->
+            <label class="radio-item" onclick="selectDEM('aw3d_free')">
+              <input type="radio" name="dem-src" value="aw3d_free">
+              <div class="radio-label">
+                <div class="radio-name">AW3D30 (JAXA)<span class="resolution-badge res-free">GRÁTIS</span></div>
+              </div>
+              <button class="dem-info-btn" onclick="showDEMInfo('aw3d_free',this,event)" title="Detalhes"><i class="fa fa-info-circle"></i></button>
+            </label>
+
+            <!-- OpenTopography API key — required for Copernicus GLO-30 and AW3D30 -->
             <div id="cop-api-row" style="display:none;margin:-2px 0 6px 20px;padding:7px 8px;
               background:rgba(21,101,192,.07);border:1px solid rgba(21,101,192,.18);border-radius:5px">
               <div style="font-size:11px;color:#546e7a;margin-bottom:4px">
@@ -926,7 +934,7 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
                 style="width:100%;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.1);
                 color:#e0e0e0;border-radius:4px;padding:5px 8px;font-size:11px;font-family:monospace;
                 box-sizing:border-box;outline:none">
-              <div style="font-size:10px;color:#37474f;margin-top:4px">
+              <div id="cop-api-desc" style="font-size:10px;color:#37474f;margin-top:4px">
                 Dados reais Copernicus GLO-30 (±4m) via portal.opentopography.org
               </div>
             </div>
@@ -3024,6 +3032,59 @@ async function fetchCopernicusOpenTopo(sw, ne, setStep) {
   };
 }
 
+async function fetchAW3D30FromAPI(sw, ne, setStep) {
+  const key = (document.getElementById('opentopo-key').value || '').trim();
+  if (!key) throw new Error(
+    'API Key não configurada — insira a key OpenTopography no painel DEM'
+  );
+
+  setStep(15, 'Consultando OpenTopography API (AW3D30 JAXA 30m)...');
+
+  const params = new URLSearchParams({
+    demtype:      'AW3D30',
+    south:        sw.lat.toFixed(5),
+    north:        ne.lat.toFixed(5),
+    west:         sw.lng.toFixed(5),
+    east:         ne.lng.toFixed(5),
+    outputFormat: 'GTiff',
+    API_Key:      key
+  });
+
+  const resp = await fetch(
+    `https://portal.opentopography.org/API/globaldem?${params}`
+  );
+  if (!resp.ok) {
+    const txt = await resp.text().catch(() => '');
+    throw new Error(`OpenTopography ${resp.status}: ${txt.slice(0, 200)}`);
+  }
+
+  setStep(52, 'Recebendo GeoTIFF AW3D30...');
+  const buf = await resp.arrayBuffer();
+
+  setStep(68, 'Decodificando GeoTIFF (geotiff.js)...');
+  const tiff  = await GeoTIFF.fromArrayBuffer(buf);
+  const image = await tiff.getImage();
+  const [raster] = await image.readRasters();
+
+  const totW = image.getWidth();
+  const totH = image.getHeight();
+  const grid  = new Float32Array(totW * totH);
+  for (let i = 0; i < grid.length; i++) grid[i] = raster[i];
+
+  const bbox   = image.getBoundingBox();
+  const clr    = ((bbox[3] + bbox[1]) / 2) * Math.PI / 180;
+  const cellMx = ((bbox[2] - bbox[0]) / totW) * 111320 * Math.cos(clr);
+  const cellMy = ((bbox[3] - bbox[1]) / totH) * 111320;
+
+  return {
+    grid, totH, totW,
+    cellM:    (cellMx + cellMy) / 2,
+    tileCount: 1,
+    nwLat: bbox[3], nwLng: bbox[0],
+    seLat: bbox[1], seLng: bbox[2]
+  };
+}
+
 async function runRealDEMAnalysis(setStep, colorScheme = null) {
   const bounds = aoiLayer ? aoiLayer.getBounds() : map.getBounds();
   const sw = bounds.getSouthWest(), ne = bounds.getNorthEast();
@@ -3042,12 +3103,13 @@ async function runRealDEMAnalysis(setStep, colorScheme = null) {
     setStep(72, 'Calculando declividade — método de Horn (Copernicus GLO-30)...');
     // Real data: no preprocessing — slope computed directly from file values
 
-  } else if (selectedDEM === 'aw3d_free' && aw3dFileBuffer) {
-    // ── Real AW3D Standard 30m from JAXA GeoTIFF (local file, no CORS) ──────
-    const aw = await fetchAW3DFromFile(sw, ne, setStep);
+  } else if (selectedDEM === 'aw3d_free') {
+    // ── AW3D30 JAXA 30m — file buffer (local upload) or OpenTopography API ──
+    const aw = aw3dFileBuffer
+      ? await fetchAW3DFromFile(sw, ne, setStep)
+      : await fetchAW3D30FromAPI(sw, ne, setStep);
     ({ grid, totH, totW, cellM, tileCount, nwLat, nwLng, seLat, seLng } = aw);
     setStep(72, 'Calculando declividade — método de Horn (AW3D30 JAXA)...');
-    // Real data: no preprocessing needed
 
   } else if (selectedDEM === 'aw3d_05' && aw3d05FileBuffer) {
     // ── Real AW3D Premium 0.5m from RESTEC GeoTIFF (local file, no CORS) ────
@@ -3753,9 +3815,17 @@ function selectDEM(src) {
   if (radio) radio.checked = true;
 
   // Show/hide import box, API key inputs, and UP42 panel
-  document.getElementById('cop-api-row').style.display          = src === 'copernicus' ? 'block' : 'none';
+  const needsOpenTopo = src === 'copernicus' || src === 'aw3d_free';
+  document.getElementById('cop-api-row').style.display          = needsOpenTopo ? 'block' : 'none';
   document.getElementById('local-dem-import-row').style.display = src === 'local'      ? 'block' : 'none';
   document.getElementById('nextmap6-panel').style.display       = src === 'nextmap6'   ? 'block' : 'none';
+  // Update description text in the shared API key panel
+  const descEl = document.getElementById('cop-api-desc');
+  if (descEl) {
+    descEl.textContent = src === 'aw3d_free'
+      ? 'Dados AW3D30 JAXA (30m, ±5m) via portal.opentopography.org'
+      : 'Dados reais Copernicus GLO-30 (±4m) via portal.opentopography.org';
+  }
 
   // nextmap6: badge stays "Necessário" until data is actually downloaded
   if (src === 'nextmap6' && !aw3d25FileBuffer) {
@@ -5671,8 +5741,8 @@ function updateDot(which, ok) {
 }
 
 function checkReady() {
-  const needsKey       = selectedDEM === 'copernicus' &&
-    !(document.getElementById('opentopo-key').value || '').trim();
+  const keyVal         = (document.getElementById('opentopo-key').value || '').trim();
+  const needsKey       = (selectedDEM === 'copernicus' || selectedDEM === 'aw3d_free') && !keyVal;
   const needsLocalFile = selectedDEM === 'local'     && !localDemBuffer;
   const needsNM6Data   = selectedDEM === 'nextmap6'  && !aw3d25FileBuffer;
   const ready = selectedDEM && aoiDefined && !needsKey && !needsLocalFile && !needsNM6Data;
@@ -5975,8 +6045,7 @@ function runSteps3to4() {
   Object.values(TILES).forEach(t => { if (map.hasLayer(t)) map.removeLayer(t); });
   TILES.sat.addTo(map);
   const munKey = document.getElementById('munic-sel')?.value || 'barbacena';
-  const cacheKey = selectedDEM === 'aw3d_free' && !aw3dFileBuffer
-    ? `${selectedDEM}_sim|${munKey}` : `${selectedDEM}|${munKey}`;
+  const cacheKey = `${selectedDEM}|${munKey}`;
   const cached = demCache[cacheKey];
   if (cached?.stats?._grid) {
     const overlay = document.getElementById('processing-overlay');
@@ -11499,8 +11568,7 @@ async function runAnalysis() {
       // Store in cache
       if (realStats) {
         const munKey = document.getElementById('munic-sel')?.value || 'custom';
-        const cacheKey = selectedDEM === 'aw3d_free' && !aw3dFileBuffer
-          ? `${selectedDEM}_sim|${munKey}` : `${selectedDEM}|${munKey}`;
+        const cacheKey = `${selectedDEM}|${munKey}`;
         demCache[cacheKey] = {
           dataUrl: realStats._dataUrl,
           imgBounds: realStats._imgBounds,
@@ -11653,16 +11721,16 @@ function showResults(realStats = null) {
   const sourceLabel = realStats
     ? (selectedDEM === 'copernicus'
         ? `<span style="color:#66bb6a">✓ Dados reais — Copernicus GLO-30 (OpenTopography, ${realStats.tileCount} tile)</span>`
-        : selectedDEM === 'aw3d_free' && aw3dFileBuffer
-          ? `<span style="color:#ce93d8">✓ Dados reais — AW3D 30m (JAXA, arquivo local)</span>`
+        : selectedDEM === 'aw3d_free'
+          ? (aw3dFileBuffer
+              ? `<span style="color:#ce93d8">✓ Dados reais — AW3D30 30m (JAXA, arquivo local)</span>`
+              : `<span style="color:#66bb6a">✓ Dados reais — AW3D30 30m (JAXA, OpenTopography)</span>`)
           : selectedDEM === 'aw3d_05' && aw3d05FileBuffer
             ? `<span style="color:#ffa726">✓ Dados reais — AW3D 0.5m (arquivo local)</span>`
             : selectedDEM === 'aw3d_25' && aw3d25FileBuffer
               ? `<span style="color:#ffa726">✓ Dados reais — AW3D 5m (arquivo local)</span>`
               : `<span style="color:#66bb6a">✓ Dados reais — ${realStats.tileCount} tiles AWS Terrain (SRTM)</span>`)
-    : selectedDEM === 'aw3d_free' && !aw3dFileBuffer
-      ? `<span style="color:#ffa726">⚠ Simulado — importe o GeoTIFF JAXA para dados reais</span>`
-      : `<span style="color:#ffa726">⚠ Dados simulados (demo)</span>`;
+    : `<span style="color:#ffa726">⚠ Dados simulados (demo)</span>`;
 
   document.getElementById('rp-body').innerHTML = `
     <div class="res-card">
