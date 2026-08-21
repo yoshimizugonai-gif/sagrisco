@@ -1039,6 +1039,8 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
                 <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:4px;padding:5px">
                   <div style="font-size:9px;color:#546e7a;margin-bottom:4px;font-weight:600;letter-spacing:.3px"><i class="fa fa-folder-open fa-xs"></i> Arquivo</div>
                   <button class="cmp-src-btn active" id="cmp-a-src-geotiff" onclick="_setCmpSrc('a','geotiff'); document.getElementById('cmp-a-file').click()" style="width:100%;justify-content:center"><i class="fa fa-file-alt fa-xs"></i> GeoTIFF</button>
+                  <div id="cmp-a-file-status" style="font-size:9px;margin-top:4px;color:#78909c;line-height:1.4;word-break:break-all"></div>
+                  <input type="file" id="cmp-a-file" accept=".tif,.tiff" onchange="onCmpAImport(event)" style="display:none">
                 </div>
                 <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:4px;padding:5px">
                   <div style="font-size:9px;color:#546e7a;margin-bottom:4px;font-weight:600;letter-spacing:.3px"><i class="fa fa-cloud fa-xs"></i> API (auto)</div>
@@ -1062,15 +1064,7 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
                   </div>
                 </div>
               </div>
-              <div id="cmp-a-sub-geotiff">
-                <div id="cmp-a-type-row" style="font-size:11px;color:#546e7a;margin-bottom:7px;font-style:italic">
-                  <i class="fa fa-magic" style="font-size:9px"></i> Tipo detectado automaticamente ao importar
-                </div>
-                <div class="import-box" id="cmp-a-import-box" onclick="document.getElementById('cmp-a-file').click()">
-                  <label class="import-lbl" id="cmp-a-lbl" style="pointer-events:none"><i class="fa fa-cloud-upload-alt"></i> GeoTIFF (.tif)</label>
-                  <input type="file" id="cmp-a-file" accept=".tif,.tiff" onchange="onCmpAImport(event)" style="display:none">
-                </div>
-              </div>
+              <div id="cmp-a-sub-geotiff" style="display:none"></div>
               <div id="cmp-a-sub-srtm" style="display:none"></div>
               <div id="cmp-a-sub-copernicus" style="display:none"></div>
               <div id="cmp-a-sub-aw3d30" style="display:none"></div>
@@ -1089,6 +1083,8 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
                 <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:4px;padding:5px">
                   <div style="font-size:9px;color:#546e7a;margin-bottom:4px;font-weight:600;letter-spacing:.3px"><i class="fa fa-folder-open fa-xs"></i> Arquivo</div>
                   <button class="cmp-src-btn active" id="cmp-b-src-geotiff" onclick="_setCmpSrc('b','geotiff'); document.getElementById('cmp-b-file').click()" style="width:100%;justify-content:center"><i class="fa fa-file-alt fa-xs"></i> GeoTIFF</button>
+                  <div id="cmp-b-file-status" style="font-size:9px;margin-top:4px;color:#78909c;line-height:1.4;word-break:break-all"></div>
+                  <input type="file" id="cmp-b-file" accept=".tif,.tiff" onchange="onCmpBImport(event)" style="display:none">
                 </div>
                 <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:4px;padding:5px">
                   <div style="font-size:9px;color:#546e7a;margin-bottom:4px;font-weight:600;letter-spacing:.3px"><i class="fa fa-cloud fa-xs"></i> API (auto)</div>
@@ -1112,15 +1108,7 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
                   </div>
                 </div>
               </div>
-              <div id="cmp-b-sub-geotiff">
-                <div id="cmp-b-type-row" style="font-size:11px;color:#546e7a;margin-bottom:7px;font-style:italic">
-                  <i class="fa fa-magic" style="font-size:9px"></i> Tipo detectado automaticamente ao importar
-                </div>
-                <div class="import-box" id="cmp-b-import-box" onclick="document.getElementById('cmp-b-file').click()">
-                  <label class="import-lbl" id="cmp-b-lbl" style="pointer-events:none"><i class="fa fa-cloud-upload-alt"></i> GeoTIFF (.tif)</label>
-                  <input type="file" id="cmp-b-file" accept=".tif,.tiff" onchange="onCmpBImport(event)" style="display:none">
-                </div>
-              </div>
+              <div id="cmp-b-sub-geotiff" style="display:none"></div>
               <div id="cmp-b-sub-srtm" style="display:none"></div>
               <div id="cmp-b-sub-copernicus" style="display:none"></div>
               <div id="cmp-b-sub-aw3d30" style="display:none"></div>
@@ -4029,8 +4017,8 @@ async function onCmpAImport(e) {
   const file = e.target.files[0];
   e.target.value = '';
   if (!file) return;
-  const lbl = document.getElementById('cmp-a-lbl');
-  lbl.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Carregando...';
+  const stat = document.getElementById('cmp-a-file-status');
+  if (stat) stat.innerHTML = '<i class="fa fa-spinner fa-spin fa-xs"></i> Carregando...';
   try {
     const buf = await file.arrayBuffer();
     // Auto-detect DEM type from GeoTIFF CRS
@@ -4085,21 +4073,14 @@ async function onCmpAImport(e) {
     else                            ibgeMdeBuffer    = buf;
     _cmpDetectedLabelA = detectedLabel;
 
-    lbl.innerHTML = `<i class="fa fa-check" style="color:#81c784"></i> ${file.name}`;
-
-    // Update type display row
-    const typeEl = document.getElementById('cmp-a-type-row');
-    if (typeEl) {
-      typeEl.style.color     = '#cfd8dc';
-      typeEl.style.fontStyle = 'normal';
-      typeEl.innerHTML = `<span style="font-weight:600">${detectedLabel}</span>`
-        + `&nbsp;<button onclick="_showResInfoPopup(this)" data-res="${detectedLabel}"`
-        + ` data-proj="${isProj?'1':'0'}" data-resm="${resM.toFixed(4)}"`
-        + ` style="background:none;border:none;color:#78909c;cursor:pointer;font-size:11px;padding:0 1px;vertical-align:middle;line-height:1"`
-        + ` title="Como este valor é calculado">ⓘ</button>`;
-    }
+    if (stat) stat.innerHTML = `<i class="fa fa-check fa-xs" style="color:#81c784"></i> ${file.name}<br>`
+      + `<span style="color:#cfd8dc;font-weight:600">${detectedLabel}</span>`
+      + `&nbsp;<button onclick="_showResInfoPopup(this)" data-res="${detectedLabel}"`
+      + ` data-proj="${isProj?'1':'0'}" data-resm="${resM.toFixed(4)}"`
+      + ` style="background:none;border:none;color:#78909c;cursor:pointer;font-size:10px;padding:0 1px;vertical-align:middle;line-height:1"`
+      + ` title="Como este valor é calculado">ⓘ</button>`;
   } catch(err) {
-    lbl.innerHTML = '<i class="fa fa-cloud-upload-alt"></i> GeoTIFF (.tif)';
+    if (stat) stat.innerHTML = '';
     toast('warn', `Erro ao ler arquivo A: ${err.message}`);
   }
   _updateCmpEstimation();
@@ -4110,8 +4091,8 @@ async function onCmpBImport(e) {
   const file = e.target.files[0];
   e.target.value = '';
   if (!file) return;
-  const lbl = document.getElementById('cmp-b-lbl');
-  lbl.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Carregando...';
+  const stat = document.getElementById('cmp-b-file-status');
+  if (stat) stat.innerHTML = '<i class="fa fa-spinner fa-spin fa-xs"></i> Carregando...';
   try {
     const buf = await file.arrayBuffer();
     // Detect type and bounds
@@ -4162,17 +4143,12 @@ async function onCmpBImport(e) {
       else if (cmpSrcA === 'ibge_mde') ibgeMdeBuffer   = cmpBufA;
     }
 
-    lbl.innerHTML = `<i class="fa fa-check" style="color:#ffb74d"></i> ${file.name}`;
-    const typeEl = document.getElementById('cmp-b-type-row');
-    if (typeEl) {
-      typeEl.style.color     = '#cfd8dc';
-      typeEl.style.fontStyle = 'normal';
-      typeEl.innerHTML = `<span style="font-weight:600">${resStr}</span>`
-        + `&nbsp;<button onclick="_showResInfoPopup(this)" data-res="${resStr}"`
-        + ` data-proj="${isProj?'1':'0'}" data-resm="${resM.toFixed(4)}"`
-        + ` style="background:none;border:none;color:#78909c;cursor:pointer;font-size:11px;padding:0 1px;vertical-align:middle;line-height:1"`
-        + ` title="Como este valor é calculado">ⓘ</button>`;
-    }
+    if (stat) stat.innerHTML = `<i class="fa fa-check fa-xs" style="color:#ffb74d"></i> ${file.name}<br>`
+      + `<span style="color:#cfd8dc;font-weight:600">${resStr}</span>`
+      + `&nbsp;<button onclick="_showResInfoPopup(this)" data-res="${resStr}"`
+      + ` data-proj="${isProj?'1':'0'}" data-resm="${resM.toFixed(4)}"`
+      + ` style="background:none;border:none;color:#78909c;cursor:pointer;font-size:10px;padding:0 1px;vertical-align:middle;line-height:1"`
+      + ` title="Como este valor é calculado">ⓘ</button>`;
 
     // Fit map to union of A+B (or B alone if A not yet imported)
     const boundsRef = cmpSrcTypeA === 'geotiff' ? _cmpWgsBoundsA : null;
@@ -4187,7 +4163,7 @@ async function onCmpBImport(e) {
     map.fitBounds([[fS, fW], [fN, fE]], { padding:[30,30] });
 
   } catch(err) {
-    lbl.innerHTML = '<i class="fa fa-cloud-upload-alt"></i> GeoTIFF (.tif)';
+    if (stat) stat.innerHTML = '';
     toast('warn', `Erro ao ler arquivo B: ${err.message}`);
   }
   _updateCmpEstimation();
