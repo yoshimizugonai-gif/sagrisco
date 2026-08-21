@@ -9295,40 +9295,40 @@ function _showResInfoPopup(btn) {
   let crsBlock, noteBlock;
   if (isProj) {
     crsBlock =
-      '<div style="font-size:10px;color:#90a4ae;margin-bottom:5px">UTM投影座標 — ピクセルサイズはメートルで直接記録:</div>'
+      '<div style="font-size:10px;color:#90a4ae;margin-bottom:5px">Coordenadas projetadas UTM — tamanho do pixel registrado diretamente em metros:</div>'
       + '<div style="background:#0d1117;border-radius:3px;padding:5px 7px;margin-bottom:6px;font-size:9.5px;color:#a5d6a7;font-family:monospace">'
       + 'resX = (bbox.maxX − bbox.minX) ÷ width_px<br>'
-      + '<span style="color:#78909c">// UTM座標 → 緯度補正不要、値はそのままメートル</span>'
+      + '<span style="color:#78909c">// Coord. UTM → sem correção de latitude; valor já em metros</span>'
       + '</div>';
     noteBlock =
       '<div style="font-size:10px;color:#78909c">'
-      + 'この値は精確な地上分解能（水平方向）です。<br>'
-      + '名目解像度と一致するか、ごくわずかな誤差のみです。'
+      + 'Este valor corresponde à resolução espacial real (horizontal).<br>'
+      + 'Coincide com a resolução nominal ou apresenta erro mínimo.'
       + '</div>';
   } else {
     crsBlock =
-      '<div style="font-size:10px;color:#90a4ae;margin-bottom:5px">WGS84（地理座標）— 度数をメートルに変換:</div>'
+      '<div style="font-size:10px;color:#90a4ae;margin-bottom:5px">WGS84 (coordenadas geográficas) — conversão de graus para metros:</div>'
       + '<div style="background:#0d1117;border-radius:3px;padding:5px 7px;margin-bottom:6px;font-size:9.5px;color:#a5d6a7;font-family:monospace">'
       + 'resX = (bbox.maxX − bbox.minX) ÷ width_px<br>'
       + 'resY = (bbox.maxY − bbox.minY) ÷ height_px<br>'
-      + '<span style="color:#78909c">// 度数 → メートル（X・Y平均、緯度cos補正あり）:</span><br>'
+      + '<span style="color:#78909c">// graus → metros (média X·Y, com correção cos da latitude):</span><br>'
       + 'res = (resX×111320×cos(lat) + resY×111320) ÷ 2'
       + '</div>';
     if (resM >= 20) {
       noteBlock =
         '<div style="font-size:10px;color:#78909c">'
-        + '⚠ 名目解像度と異なる場合があります。<br>'
-        + 'AW3D等の「30m」製品は1″(arc-second)単位で格納。<br>'
-        + '緯度−22°: 東西 1″×111320×cos(22°)≈28.6m<br>'
-        + '　　　　　南北 1″×111320≈30.9m → 平均≈29.8m<br>'
-        + '"30m"はAW3Dの名目解像度（赤道基準）です。'
+        + '⚠ Pode diferir da resolução nominal.<br>'
+        + 'Produtos "30m" como o AW3D são armazenados em 1″ (arc-segundo).<br>'
+        + 'Lat −22°: L-O 1″×111320×cos(22°)≈28,6m<br>'
+        + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;N-S 1″×111320≈30,9m → média≈29,8m<br>'
+        + '"30m" é a resolução nominal do AW3D (referência no equador).'
         + '</div>';
     } else {
       noteBlock =
         '<div style="font-size:10px;color:#78909c">'
-        + '高解像度データがWGS84で格納されています。<br>'
-        + '東西方向はcos(緯度)補正で南北より短くなるため、<br>'
-        + 'X・Y平均を地上分解能の推定値として使用しています。'
+        + 'Dados de alta resolução armazenados em WGS84.<br>'
+        + 'A direção L-O é menor que N-S devido à correção cos(lat),<br>'
+        + 'por isso a média X·Y é usada como estimativa da resolução espacial.'
         + '</div>';
     }
   }
@@ -9342,7 +9342,7 @@ function _showResInfoPopup(btn) {
     + 'box-shadow:0 4px 16px rgba(0,0,0,.6)';
   popup.innerHTML =
     '<div style="font-weight:700;color:#80cbc4;margin-bottom:6px;font-size:11px">'
-    + '推定解像度: <span style="color:#fff">' + resStr + '</span>'
+    + 'Resolução estimada: <span style="color:#fff">' + resStr + '</span>'
     + '<button onclick="document.getElementById(\'res-info-popup\').remove()"'
     + ' style="float:right;background:none;border:none;color:#78909c;cursor:pointer;font-size:13px;line-height:1;margin:-1px -2px 0 0">✕</button></div>'
     + crsBlock + noteBlock;
