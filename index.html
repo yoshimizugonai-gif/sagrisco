@@ -1765,7 +1765,7 @@ const DEM_META = {
   drone:      { name:"DTM Drone / LiDAR (local)", res:"<0.5m", resLabel:"< 0.5 metros", precision:"±0.1m", equiv:"1:500", cost:"Levantamento local", date:"—", coverage:"Área específica", survey:"—" },
   local:      { name:"GeoTIFF / DTM Local", res:"variável", resLabel:"Detectado automaticamente", precision:"—", equiv:"—", cost:"Arquivo local", date:"—", coverage:"Área do arquivo", survey:"—" },
   nextmap6:   { name:"NEXTMap 6 DTM (Intermap via UP42)", res:"6m", resLabel:"6 metros", precision:"±3m (LE90)", equiv:"1:10.000", cost:"Pago (créditos UP42)", date:"2020+", coverage:"Brasil (cobertura total)", survey:"—" },
-  ibge_mde:   { name:"IBGE MDE 20m (Projeto RJ-25)", res:"20m", resLabel:"20 metros", precision:"±5m", equiv:"1:25.000", cost:"Gratuito (IBGE)", date:"~2010", coverage:"RJ e SC (parcial)", survey:"Aerolevantamento 1:30.000 — Zeiss RMK Top 15" }
+  ibge_mde:   { name:"IBGE MDE 20m (Projeto RJ-25)", res:"20m", resLabel:"20 metros", precision:"±5m", equiv:"1:25.000", cost:"Gratuito (IBGE)", date:"~2010", coverage:"RJ e SC (parcial)", survey:"Aerolevantamento 1:30.000 — Zeiss RMK Top 15", photoDate:"junho de 2006" }
 };
 
 // ================================================================
@@ -12280,6 +12280,7 @@ function showDEMInfo(src, btn, e) {
     <span style="color:#546e7a">Precisão vertical: </span><b style="color:#e0e0e0">${meta.precision}</b><br>
     <span style="color:#546e7a">Cobertura: </span><span style="color:#90a4ae">${meta.coverage}</span><br>
     ${meta.survey !== '—' ? `<span style="color:#546e7a">Survey Date: </span><span style="color:#90a4ae">${meta.survey}</span><br>` : ''}
+    ${meta.photoDate ? `<span style="color:#546e7a">Aquisição (foto aérea): </span><span style="color:#90a4ae">${meta.photoDate}</span><br>` : ''}
     <span style="color:#546e7a">Custo: </span><b style="color:${isPaid?'#ffa726':'#66bb6a'}">${meta.cost}</b>`;
   popup.style.display = 'block';
   const rect = btn.getBoundingClientRect();
