@@ -3985,12 +3985,14 @@ function _updateCmpEstimation() {
   const clr = ((s + n) / 2) * Math.PI / 180;
   const wKm = (e - w) * 111.32 * Math.cos(clr);
   const hKm = (n - s) * 111.32;
-  const cellDeg = 0.000277; // ~30m
+  const isIbge  = cmpSrcTypeA === 'ibge_mde' || cmpSrcTypeB === 'ibge_mde';
+  const cellDeg = isIbge ? 0.000185 : 0.000277; // ~20m or ~30m
   const cols = Math.round((e - w) / cellDeg);
   const rows = Math.round((n - s) / cellDeg);
   const mpx  = (cols * rows / 1e6).toFixed(1);
   const secEst = Math.max(5, Math.round(cols * rows / 60000));
-  const srcName = (cmpSrcTypeA === 'srtm'   || cmpSrcTypeB === 'srtm')   ? 'SRTM 30m'
+  const srcName = isIbge ? 'IBGE MDE 20m'
+    : (cmpSrcTypeA === 'srtm'   || cmpSrcTypeB === 'srtm')   ? 'SRTM 30m'
     : (cmpSrcTypeA === 'aw3d30' || cmpSrcTypeB === 'aw3d30') ? 'AW3D30 30m'
     : 'Copernicus 30m';
 
