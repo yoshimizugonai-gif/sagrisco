@@ -919,25 +919,8 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
               <button class="dem-info-btn" onclick="showDEMInfo('aw3d_free',this,event)" title="Detalhes"><i class="fa fa-info-circle"></i></button>
             </label>
 
-            <!-- OpenTopography API key — required for Copernicus GLO-30 and AW3D30 -->
-            <div id="cop-api-row" style="display:none;margin:-2px 0 6px 20px;padding:7px 8px;
-              background:rgba(21,101,192,.07);border:1px solid rgba(21,101,192,.18);border-radius:5px">
-              <div style="font-size:11px;color:#546e7a;margin-bottom:4px">
-                <i class="fa fa-key fa-xs" style="color:#42a5f5"></i>&nbsp;
-                API Key — <b style="color:#90a4ae">OpenTopography</b>
-                <a href="https://portal.opentopography.org/myopentopo" target="_blank"
-                  style="color:#42a5f5;text-decoration:none;margin-left:4px;font-size:10px">
-                  → Registrar grátis</a>
-              </div>
-              <input id="opentopo-key" type="text" placeholder="Cole sua API key aqui..."
-                oninput="checkReady(); _updateAllCopKeyWarnings(); try{localStorage.setItem('sagrisco_opentopo_key',this.value.trim())}catch(e){}"
-                style="width:100%;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.1);
-                color:#e0e0e0;border-radius:4px;padding:5px 8px;font-size:11px;font-family:monospace;
-                box-sizing:border-box;outline:none">
-              <div id="cop-api-desc" style="font-size:10px;color:#37474f;margin-top:4px">
-                Dados reais Copernicus GLO-30 (±4m) via portal.opentopography.org
-              </div>
-            </div>
+            <!-- opentopo-key hidden — key managed server-side via OPENTOPO_KEY env var -->
+            <input type="hidden" id="opentopo-key" value="">
 
             <label class="radio-item" onclick="selectDEM('nextmap6')">
               <input type="radio" name="dem-src" value="nextmap6">
@@ -1067,22 +1050,10 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
                 </div>
               </div>
               <div id="cmp-a-sub-copernicus" style="display:none">
-                <div style="font-size:10px;color:#78909c;margin-bottom:4px;line-height:1.5;display:flex;align-items:center;gap:4px"><span><i class="fa fa-satellite fa-xs" style="color:#42a5f5"></i> Copernicus GLO-30 via OpenTopography</span><button class="dem-info-btn" onclick="showDEMInfo('copernicus',this,event)" title="Detalhes"><i class="fa fa-info-circle"></i></button></div>
-                <div style="font-size:10px;color:#78909c;margin-bottom:3px">Chave API (opcional — usa chave principal se vazio):</div>
-                <input id="cmp-a-cop-key" type="password" placeholder="Chave OpenTopography..."
-                  style="width:100%;box-sizing:border-box;padding:4px 6px;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.1);border-radius:3px;color:#cfd8dc;font-size:10px;font-family:inherit" oninput="_updateCopKeyWarning('a')">
-                <div id="cmp-a-cop-warn" style="display:none;margin-top:5px;font-size:10px;color:#ffa726;padding:4px 6px;background:rgba(255,167,38,.1);border:1px solid rgba(255,167,38,.3);border-radius:3px;line-height:1.5">
-                  <i class="fa fa-exclamation-triangle fa-xs"></i> Chave API necessária — insira aqui ou na aba principal (Fonte do DEM).
-                </div>
+                <div style="font-size:10px;color:#78909c;line-height:1.5;display:flex;align-items:center;gap:4px"><span><i class="fa fa-satellite fa-xs" style="color:#42a5f5"></i> Copernicus GLO-30 via OpenTopography</span><button class="dem-info-btn" onclick="showDEMInfo('copernicus',this,event)" title="Detalhes"><i class="fa fa-info-circle"></i></button></div>
               </div>
               <div id="cmp-a-sub-aw3d30" style="display:none">
-                <div style="font-size:10px;color:#78909c;margin-bottom:4px;line-height:1.5;display:flex;align-items:center;gap:4px"><span><i class="fa fa-satellite fa-xs" style="color:#42a5f5"></i> AW3D30 JAXA 30m via OpenTopography</span><button class="dem-info-btn" onclick="showDEMInfo('aw3d_free',this,event)" title="Detalhes"><i class="fa fa-info-circle"></i></button></div>
-                <div style="font-size:10px;color:#78909c;margin-bottom:3px">Chave API (opcional — usa chave principal se vazio):</div>
-                <input id="cmp-a-aw3d-key" type="password" placeholder="Chave OpenTopography..."
-                  style="width:100%;box-sizing:border-box;padding:4px 6px;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.1);border-radius:3px;color:#cfd8dc;font-size:10px;font-family:inherit" oninput="_updateCopKeyWarning('a')">
-                <div id="cmp-a-aw3d-warn" style="display:none;margin-top:5px;font-size:10px;color:#ffa726;padding:4px 6px;background:rgba(255,167,38,.1);border:1px solid rgba(255,167,38,.3);border-radius:3px;line-height:1.5">
-                  <i class="fa fa-exclamation-triangle fa-xs"></i> Chave API necessária — insira aqui ou na aba principal (Fonte do DEM).
-                </div>
+                <div style="font-size:10px;color:#78909c;line-height:1.5;display:flex;align-items:center;gap:4px"><span><i class="fa fa-satellite fa-xs" style="color:#42a5f5"></i> AW3D30 JAXA 30m via OpenTopography</span><button class="dem-info-btn" onclick="showDEMInfo('aw3d_free',this,event)" title="Detalhes"><i class="fa fa-info-circle"></i></button></div>
               </div>
             </div>
 
@@ -1117,22 +1088,10 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
                 </div>
               </div>
               <div id="cmp-b-sub-copernicus" style="display:none">
-                <div style="font-size:10px;color:#78909c;margin-bottom:4px;line-height:1.5;display:flex;align-items:center;gap:4px"><span><i class="fa fa-satellite fa-xs" style="color:#42a5f5"></i> Copernicus GLO-30 via OpenTopography</span><button class="dem-info-btn" onclick="showDEMInfo('copernicus',this,event)" title="Detalhes"><i class="fa fa-info-circle"></i></button></div>
-                <div style="font-size:10px;color:#78909c;margin-bottom:3px">Chave API (opcional — usa chave principal se vazio):</div>
-                <input id="cmp-b-cop-key" type="password" placeholder="Chave OpenTopography..."
-                  style="width:100%;box-sizing:border-box;padding:4px 6px;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.1);border-radius:3px;color:#cfd8dc;font-size:10px;font-family:inherit" oninput="_updateCopKeyWarning('b')">
-                <div id="cmp-b-cop-warn" style="display:none;margin-top:5px;font-size:10px;color:#ffa726;padding:4px 6px;background:rgba(255,167,38,.1);border:1px solid rgba(255,167,38,.3);border-radius:3px;line-height:1.5">
-                  <i class="fa fa-exclamation-triangle fa-xs"></i> Chave API necessária — insira aqui ou na aba principal (Fonte do DEM).
-                </div>
+                <div style="font-size:10px;color:#78909c;line-height:1.5;display:flex;align-items:center;gap:4px"><span><i class="fa fa-satellite fa-xs" style="color:#42a5f5"></i> Copernicus GLO-30 via OpenTopography</span><button class="dem-info-btn" onclick="showDEMInfo('copernicus',this,event)" title="Detalhes"><i class="fa fa-info-circle"></i></button></div>
               </div>
               <div id="cmp-b-sub-aw3d30" style="display:none">
-                <div style="font-size:10px;color:#78909c;margin-bottom:4px;line-height:1.5;display:flex;align-items:center;gap:4px"><span><i class="fa fa-satellite fa-xs" style="color:#42a5f5"></i> AW3D30 JAXA 30m via OpenTopography</span><button class="dem-info-btn" onclick="showDEMInfo('aw3d_free',this,event)" title="Detalhes"><i class="fa fa-info-circle"></i></button></div>
-                <div style="font-size:10px;color:#78909c;margin-bottom:3px">Chave API (opcional — usa chave principal se vazio):</div>
-                <input id="cmp-b-aw3d-key" type="password" placeholder="Chave OpenTopography..."
-                  style="width:100%;box-sizing:border-box;padding:4px 6px;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.1);border-radius:3px;color:#cfd8dc;font-size:10px;font-family:inherit" oninput="_updateCopKeyWarning('b')">
-                <div id="cmp-b-aw3d-warn" style="display:none;margin-top:5px;font-size:10px;color:#ffa726;padding:4px 6px;background:rgba(255,167,38,.1);border:1px solid rgba(255,167,38,.3);border-radius:3px;line-height:1.5">
-                  <i class="fa fa-exclamation-triangle fa-xs"></i> Chave API necessária — insira aqui ou na aba principal (Fonte do DEM).
-                </div>
+                <div style="font-size:10px;color:#78909c;line-height:1.5;display:flex;align-items:center;gap:4px"><span><i class="fa fa-satellite fa-xs" style="color:#42a5f5"></i> AW3D30 JAXA 30m via OpenTopography</span><button class="dem-info-btn" onclick="showDEMInfo('aw3d_free',this,event)" title="Detalhes"><i class="fa fa-info-circle"></i></button></div>
               </div>
             </div>
 
@@ -1628,16 +1587,6 @@ async function _authLogin() {
   } catch(e) {}
 })();
 
-// OpenTopography APIキーをlocalStorageから復元
-(function(){
-  try {
-    const saved = localStorage.getItem('sagrisco_opentopo_key');
-    if (saved) {
-      const el = document.getElementById('opentopo-key');
-      if (el) el.value = saved;
-    }
-  } catch(e) {}
-})();
 // ================================================================
 //  SAGRISCO v0.2 — Etapa 1: Banco de Dados & AOI
 //  GIDES v1.1 — Deslizamento Planar
@@ -3010,26 +2959,17 @@ async function fetchAW3D25FromFile(sw, ne, setStep, buffer = null) {
 // API docs: portal.opentopography.org/apidocs/#/Public/getGlobalDem
 // Free API key: portal.opentopography.org/myopentopo  (registration required)
 async function fetchCopernicusOpenTopo(sw, ne, setStep) {
-  const key = (document.getElementById('opentopo-key').value || '').trim();
-  if (!key) throw new Error(
-    'API Key não configurada — insira a key OpenTopography no painel DEM'
-  );
-
   setStep(15, 'Consultando OpenTopography API (Copernicus GLO-30)...');
 
   const params = new URLSearchParams({
-    demtype:      'COP30',
-    south:        sw.lat.toFixed(5),
-    north:        ne.lat.toFixed(5),
-    west:         sw.lng.toFixed(5),
-    east:         ne.lng.toFixed(5),
-    outputFormat: 'GTiff',
-    API_Key:      key
+    demtype: 'COP30',
+    south:   sw.lat.toFixed(5),
+    north:   ne.lat.toFixed(5),
+    west:    sw.lng.toFixed(5),
+    east:    ne.lng.toFixed(5),
   });
 
-  const resp = await fetch(
-    `https://portal.opentopography.org/API/globaldem?${params}`
-  );
+  const resp = await fetch(`/api/dem?${params}`);
   if (!resp.ok) {
     const txt = await resp.text().catch(() => '');
     throw new Error(`OpenTopography ${resp.status}: ${txt.slice(0, 120)}`);
@@ -3064,26 +3004,17 @@ async function fetchCopernicusOpenTopo(sw, ne, setStep) {
 }
 
 async function fetchAW3D30FromAPI(sw, ne, setStep) {
-  const key = (document.getElementById('opentopo-key').value || '').trim();
-  if (!key) throw new Error(
-    'API Key não configurada — insira a key OpenTopography no painel DEM'
-  );
-
   setStep(15, 'Consultando OpenTopography API (AW3D30 JAXA 30m)...');
 
   const params = new URLSearchParams({
-    demtype:      'AW3D30',
-    south:        sw.lat.toFixed(5),
-    north:        ne.lat.toFixed(5),
-    west:         sw.lng.toFixed(5),
-    east:         ne.lng.toFixed(5),
-    outputFormat: 'GTiff',
-    API_Key:      key
+    demtype: 'AW3D30',
+    south:   sw.lat.toFixed(5),
+    north:   ne.lat.toFixed(5),
+    west:    sw.lng.toFixed(5),
+    east:    ne.lng.toFixed(5),
   });
 
-  const resp = await fetch(
-    `https://portal.opentopography.org/API/globaldem?${params}`
-  );
+  const resp = await fetch(`/api/dem?${params}`);
   if (!resp.ok) {
     const txt = await resp.text().catch(() => '');
     throw new Error(`OpenTopography ${resp.status}: ${txt.slice(0, 200)}`);
@@ -3845,18 +3776,9 @@ function selectDEM(src) {
   const radio = document.querySelector(`input[value="${src}"]`);
   if (radio) radio.checked = true;
 
-  // Show/hide import box, API key inputs, and UP42 panel
-  const needsOpenTopo = src === 'copernicus' || src === 'aw3d_free';
-  document.getElementById('cop-api-row').style.display          = needsOpenTopo ? 'block' : 'none';
-  document.getElementById('local-dem-import-row').style.display = src === 'local'      ? 'block' : 'none';
-  document.getElementById('nextmap6-panel').style.display       = src === 'nextmap6'   ? 'block' : 'none';
-  // Update description text in the shared API key panel
-  const descEl = document.getElementById('cop-api-desc');
-  if (descEl) {
-    descEl.textContent = src === 'aw3d_free'
-      ? 'Dados AW3D30 JAXA (30m, ±5m) via portal.opentopography.org'
-      : 'Dados reais Copernicus GLO-30 (±4m) via portal.opentopography.org';
-  }
+  // Show/hide import box and UP42 panel
+  document.getElementById('local-dem-import-row').style.display = src === 'local'    ? 'block' : 'none';
+  document.getElementById('nextmap6-panel').style.display       = src === 'nextmap6' ? 'block' : 'none';
 
   // nextmap6: badge stays "Necessário" until data is actually downloaded
   if (src === 'nextmap6' && !aw3d25FileBuffer) {
@@ -4025,17 +3947,7 @@ function _updateCmpEstimation() {
 function _isCmpSlotReady(slot) {
   const type = slot === 'a' ? cmpSrcTypeA : cmpSrcTypeB;
   if (type === 'geotiff') return slot === 'a' ? !!cmpBufA : !!cmpBufB;
-  if (type === 'copernicus') {
-    const slotKey   = (document.getElementById(`cmp-${slot}-cop-key`)?.value  || '').trim();
-    const globalKey = (document.getElementById('opentopo-key')?.value          || '').trim();
-    return !!(slotKey || globalKey);
-  }
-  if (type === 'aw3d30') {
-    const slotKey   = (document.getElementById(`cmp-${slot}-aw3d-key`)?.value || '').trim();
-    const globalKey = (document.getElementById('opentopo-key')?.value          || '').trim();
-    return !!(slotKey || globalKey);
-  }
-  return true; // SRTM: no key needed
+  return true; // SRTM / Copernicus / AW3D30: key managed server-side
 }
 
 async function onCmpAImport(e) {
@@ -4222,16 +4134,8 @@ function _showCmpRunBtn(visible) {
   if (btn) btn.style.display = visible ? '' : 'none';
 }
 
-function _updateCopKeyWarning(slot) {
-  const copKey    = (document.getElementById(`cmp-${slot}-cop-key`)?.value  || '').trim();
-  const aw3dKey   = (document.getElementById(`cmp-${slot}-aw3d-key`)?.value || '').trim();
-  const globalKey = (document.getElementById('opentopo-key')?.value         || '').trim();
-  const type  = slot === 'a' ? cmpSrcTypeA : cmpSrcTypeB;
-  const copWarn  = document.getElementById(`cmp-${slot}-cop-warn`);
-  const aw3dWarn = document.getElementById(`cmp-${slot}-aw3d-warn`);
-  if (copWarn)  copWarn.style.display  = (type === 'copernicus' && !(copKey  || globalKey)) ? '' : 'none';
-  if (aw3dWarn) aw3dWarn.style.display = (type === 'aw3d30'     && !(aw3dKey || globalKey)) ? '' : 'none';
-  _checkCmpReady();
+function _updateCopKeyWarning(_slot) {
+  _checkCmpReady(); // key managed server-side — no client-side warning needed
 }
 
 function _updateAllCopKeyWarnings() {
@@ -4384,7 +4288,6 @@ async function runComparisonAnalysis() {
   const derivedBbox = _deriveCmpBbox();
   const savedAoiLayer   = aoiLayer;
   const savedAoiDefined = aoiDefined;
-  const savedOtKey      = document.getElementById('opentopo-key').value;
 
   // Helper: set up buffers and selectedDEM for one slot before calling runRealDEMAnalysis
   const prepSlot = (slot) => {
@@ -4399,14 +4302,6 @@ async function runComparisonAnalysis() {
       else if (src === 'aw3d_05')  aw3d05FileBuffer = buf;
       else if (src === 'aw3d_25')  aw3d25FileBuffer = buf;
       else if (src === 'ibge_mde') ibgeMdeBuffer    = buf;
-    } else if (type === 'copernicus') {
-      const slotKey = (document.getElementById(`cmp-${slot}-cop-key`)?.value || '').trim();
-      if (slotKey) document.getElementById('opentopo-key').value = slotKey;
-      else         document.getElementById('opentopo-key').value = savedOtKey;
-    } else if (type === 'aw3d30') {
-      const slotKey = (document.getElementById(`cmp-${slot}-aw3d-key`)?.value || '').trim();
-      if (slotKey) document.getElementById('opentopo-key').value = slotKey;
-      else         document.getElementById('opentopo-key').value = savedOtKey;
     }
     // Override aoiLayer for API slots when the other slot provides the bbox
     if (type !== 'geotiff' && derivedBbox) {
@@ -4440,7 +4335,6 @@ async function runComparisonAnalysis() {
     // Restore aoiLayer before B prep in case A changed it
     aoiLayer   = savedAoiLayer;
     aoiDefined = savedAoiDefined;
-    document.getElementById('opentopo-key').value = savedOtKey;
 
     prepSlot('b');
     titleEl.textContent = `B — ${_cmpDetectedLabelB || DEM_META[cmpSrcB].name}`;
@@ -4462,7 +4356,6 @@ async function runComparisonAnalysis() {
     selectedDEM = prevDEM;
     aoiLayer   = savedAoiLayer;
     aoiDefined = savedAoiDefined;
-    document.getElementById('opentopo-key').value = savedOtKey;
     analysisRun = true;
     _updateStepper();
 
@@ -4506,7 +4399,6 @@ async function runComparisonAnalysis() {
     selectedDEM = prevDEM;
     aoiLayer   = savedAoiLayer;
     aoiDefined = savedAoiDefined;
-    document.getElementById('opentopo-key').value = savedOtKey;
     console.error('Comparison analysis error:', err);
     toast('warn', `<i class="fa fa-exclamation-triangle" style="color:#ef5350"></i>&nbsp;<b>Erro:</b> ${err.message}`);
   }
@@ -5789,17 +5681,12 @@ function updateDot(which, ok) {
 }
 
 function checkReady() {
-  const keyVal         = (document.getElementById('opentopo-key').value || '').trim();
-  const needsKey       = (selectedDEM === 'copernicus' || selectedDEM === 'aw3d_free') && !keyVal;
-  const needsLocalFile = selectedDEM === 'local'     && !localDemBuffer;
-  const needsNM6Data   = selectedDEM === 'nextmap6'  && !aw3d25FileBuffer;
-  const ready = selectedDEM && aoiDefined && !needsKey && !needsLocalFile && !needsNM6Data;
+  const needsLocalFile = selectedDEM === 'local'    && !localDemBuffer;
+  const needsNM6Data   = selectedDEM === 'nextmap6' && !aw3d25FileBuffer;
+  const ready = selectedDEM && aoiDefined && !needsLocalFile && !needsNM6Data;
   document.getElementById('btn-analyze').disabled = !ready;
   const demLbl = document.getElementById('lbl-dem');
-  if (needsKey) {
-    demLbl.textContent = 'DEM: API Key necessária (OpenTopography)';
-    demLbl.style.color = '#ffa726';
-  } else if (needsLocalFile) {
+  if (needsLocalFile) {
     demLbl.textContent = 'DEM: selecione um arquivo GeoTIFF / DTM local';
     demLbl.style.color = '#ffa726';
   } else if (needsNM6Data) {
