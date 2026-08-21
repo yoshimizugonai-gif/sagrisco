@@ -930,7 +930,7 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
                   → Registrar grátis</a>
               </div>
               <input id="opentopo-key" type="text" placeholder="Cole sua API key aqui..."
-                oninput="checkReady(); _updateAllCopKeyWarnings()"
+                oninput="checkReady(); _updateAllCopKeyWarnings(); try{localStorage.setItem('sagrisco_opentopo_key',this.value.trim())}catch(e){}"
                 style="width:100%;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.1);
                 color:#e0e0e0;border-radius:4px;padding:5px 8px;font-size:11px;font-family:monospace;
                 box-sizing:border-box;outline:none">
@@ -1624,6 +1624,17 @@ async function _authLogin() {
       document.body.classList.add('fs-large');
       const btn = document.getElementById('tb-font-btn');
       if (btn) btn.textContent = 'A';
+    }
+  } catch(e) {}
+})();
+
+// OpenTopography APIキーをlocalStorageから復元
+(function(){
+  try {
+    const saved = localStorage.getItem('sagrisco_opentopo_key');
+    if (saved) {
+      const el = document.getElementById('opentopo-key');
+      if (el) el.value = saved;
     }
   } catch(e) {}
 })();
