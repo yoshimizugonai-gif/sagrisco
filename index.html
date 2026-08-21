@@ -1044,10 +1044,11 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
             <!-- Panel A -->
             <div style="background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.07);border-radius:5px;padding:8px;margin-bottom:6px">
               <div style="font-size:10px;color:#78909c;margin-bottom:6px;font-weight:600;letter-spacing:.3px">A — REFERÊNCIA</div>
-              <div style="display:flex;gap:4px;margin-bottom:7px">
+              <div style="display:flex;gap:4px;margin-bottom:7px;flex-wrap:wrap">
                 <button class="cmp-src-btn active" id="cmp-a-src-geotiff" onclick="_setCmpSrc('a','geotiff')"><i class="fa fa-file-alt fa-xs"></i> GeoTIFF</button>
                 <button class="cmp-src-btn" id="cmp-a-src-srtm" onclick="_setCmpSrc('a','srtm')">SRTM 30m</button>
                 <button class="cmp-src-btn" id="cmp-a-src-copernicus" onclick="_setCmpSrc('a','copernicus')">Copernicus</button>
+                <button class="cmp-src-btn" id="cmp-a-src-aw3d30" onclick="_setCmpSrc('a','aw3d30')">AW3D30</button>
               </div>
               <div id="cmp-a-sub-geotiff">
                 <div id="cmp-a-type-row" style="font-size:11px;color:#546e7a;margin-bottom:7px;font-style:italic">
@@ -1074,6 +1075,15 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
                   <i class="fa fa-exclamation-triangle fa-xs"></i> Chave API necessária — insira aqui ou na aba principal (Fonte do DEM).
                 </div>
               </div>
+              <div id="cmp-a-sub-aw3d30" style="display:none">
+                <div style="font-size:10px;color:#78909c;margin-bottom:4px;line-height:1.5;display:flex;align-items:center;gap:4px"><span><i class="fa fa-satellite fa-xs" style="color:#42a5f5"></i> AW3D30 JAXA 30m via OpenTopography</span><button class="dem-info-btn" onclick="showDEMInfo('aw3d_free',this,event)" title="Detalhes"><i class="fa fa-info-circle"></i></button></div>
+                <div style="font-size:10px;color:#78909c;margin-bottom:3px">Chave API (opcional — usa chave principal se vazio):</div>
+                <input id="cmp-a-aw3d-key" type="password" placeholder="Chave OpenTopography..."
+                  style="width:100%;box-sizing:border-box;padding:4px 6px;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.1);border-radius:3px;color:#cfd8dc;font-size:10px;font-family:inherit" oninput="_updateCopKeyWarning('a')">
+                <div id="cmp-a-aw3d-warn" style="display:none;margin-top:5px;font-size:10px;color:#ffa726;padding:4px 6px;background:rgba(255,167,38,.1);border:1px solid rgba(255,167,38,.3);border-radius:3px;line-height:1.5">
+                  <i class="fa fa-exclamation-triangle fa-xs"></i> Chave API necessária — insira aqui ou na aba principal (Fonte do DEM).
+                </div>
+              </div>
             </div>
 
             <!-- Divider arrow -->
@@ -1084,10 +1094,11 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
             <!-- Panel B -->
             <div style="background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.07);border-radius:5px;padding:8px;margin-bottom:8px">
               <div style="font-size:10px;color:#78909c;margin-bottom:6px;font-weight:600;letter-spacing:.3px">B — PROPOSTA</div>
-              <div style="display:flex;gap:4px;margin-bottom:7px">
+              <div style="display:flex;gap:4px;margin-bottom:7px;flex-wrap:wrap">
                 <button class="cmp-src-btn active" id="cmp-b-src-geotiff" onclick="_setCmpSrc('b','geotiff')"><i class="fa fa-file-alt fa-xs"></i> GeoTIFF</button>
                 <button class="cmp-src-btn" id="cmp-b-src-srtm" onclick="_setCmpSrc('b','srtm')">SRTM 30m</button>
                 <button class="cmp-src-btn" id="cmp-b-src-copernicus" onclick="_setCmpSrc('b','copernicus')">Copernicus</button>
+                <button class="cmp-src-btn" id="cmp-b-src-aw3d30" onclick="_setCmpSrc('b','aw3d30')">AW3D30</button>
               </div>
               <div id="cmp-b-sub-geotiff">
                 <div id="cmp-b-type-row" style="font-size:11px;color:#546e7a;margin-bottom:7px;font-style:italic">
@@ -1111,6 +1122,15 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
                 <input id="cmp-b-cop-key" type="password" placeholder="Chave OpenTopography..."
                   style="width:100%;box-sizing:border-box;padding:4px 6px;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.1);border-radius:3px;color:#cfd8dc;font-size:10px;font-family:inherit" oninput="_updateCopKeyWarning('b')">
                 <div id="cmp-b-cop-warn" style="display:none;margin-top:5px;font-size:10px;color:#ffa726;padding:4px 6px;background:rgba(255,167,38,.1);border:1px solid rgba(255,167,38,.3);border-radius:3px;line-height:1.5">
+                  <i class="fa fa-exclamation-triangle fa-xs"></i> Chave API necessária — insira aqui ou na aba principal (Fonte do DEM).
+                </div>
+              </div>
+              <div id="cmp-b-sub-aw3d30" style="display:none">
+                <div style="font-size:10px;color:#78909c;margin-bottom:4px;line-height:1.5;display:flex;align-items:center;gap:4px"><span><i class="fa fa-satellite fa-xs" style="color:#42a5f5"></i> AW3D30 JAXA 30m via OpenTopography</span><button class="dem-info-btn" onclick="showDEMInfo('aw3d_free',this,event)" title="Detalhes"><i class="fa fa-info-circle"></i></button></div>
+                <div style="font-size:10px;color:#78909c;margin-bottom:3px">Chave API (opcional — usa chave principal se vazio):</div>
+                <input id="cmp-b-aw3d-key" type="password" placeholder="Chave OpenTopography..."
+                  style="width:100%;box-sizing:border-box;padding:4px 6px;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.1);border-radius:3px;color:#cfd8dc;font-size:10px;font-family:inherit" oninput="_updateCopKeyWarning('b')">
+                <div id="cmp-b-aw3d-warn" style="display:none;margin-top:5px;font-size:10px;color:#ffa726;padding:4px 6px;background:rgba(255,167,38,.1);border:1px solid rgba(255,167,38,.3);border-radius:3px;line-height:1.5">
                   <i class="fa fa-exclamation-triangle fa-xs"></i> Chave API necessária — insira aqui ou na aba principal (Fonte do DEM).
                 </div>
               </div>
@@ -3921,7 +3941,7 @@ function _setCmpSrc(slot, type) {
   if (slot === 'a') cmpSrcTypeA = type;
   else              cmpSrcTypeB = type;
 
-  ['geotiff','srtm','copernicus'].forEach(t => {
+  ['geotiff','srtm','copernicus','aw3d30'].forEach(t => {
     const btn = document.getElementById(`cmp-${slot}-src-${t}`);
     if (btn) btn.classList.toggle('active', t === type);
     const sub = document.getElementById(`cmp-${slot}-sub-${t}`);
@@ -3934,6 +3954,9 @@ function _setCmpSrc(slot, type) {
   } else if (type === 'copernicus') {
     if (slot === 'a') { cmpSrcA = 'copernicus'; _cmpDetectedLabelA = null; }
     else              { cmpSrcB = 'copernicus'; _cmpDetectedLabelB = null; }
+  } else if (type === 'aw3d30') {
+    if (slot === 'a') { cmpSrcA = 'aw3d_free'; _cmpDetectedLabelA = null; }
+    else              { cmpSrcB = 'aw3d_free'; _cmpDetectedLabelB = null; }
   }
 
   _updateCmpEstimation();
@@ -3977,7 +4000,9 @@ function _updateCmpEstimation() {
   const rows = Math.round((n - s) / cellDeg);
   const mpx  = (cols * rows / 1e6).toFixed(1);
   const secEst = Math.max(5, Math.round(cols * rows / 60000));
-  const srcName = (cmpSrcTypeA === 'srtm' || cmpSrcTypeB === 'srtm') ? 'SRTM 30m' : 'Copernicus 30m';
+  const srcName = (cmpSrcTypeA === 'srtm'   || cmpSrcTypeB === 'srtm')   ? 'SRTM 30m'
+    : (cmpSrcTypeA === 'aw3d30' || cmpSrcTypeB === 'aw3d30') ? 'AW3D30 30m'
+    : 'Copernicus 30m';
 
   panel.style.display = 'block';
   panel.innerHTML = `<i class="fa fa-stopwatch fa-xs" style="color:#42a5f5"></i>`
@@ -3990,8 +4015,13 @@ function _isCmpSlotReady(slot) {
   const type = slot === 'a' ? cmpSrcTypeA : cmpSrcTypeB;
   if (type === 'geotiff') return slot === 'a' ? !!cmpBufA : !!cmpBufB;
   if (type === 'copernicus') {
-    const slotKey  = (document.getElementById(`cmp-${slot}-cop-key`)?.value || '').trim();
-    const globalKey = (document.getElementById('opentopo-key')?.value || '').trim();
+    const slotKey   = (document.getElementById(`cmp-${slot}-cop-key`)?.value  || '').trim();
+    const globalKey = (document.getElementById('opentopo-key')?.value          || '').trim();
+    return !!(slotKey || globalKey);
+  }
+  if (type === 'aw3d30') {
+    const slotKey   = (document.getElementById(`cmp-${slot}-aw3d-key`)?.value || '').trim();
+    const globalKey = (document.getElementById('opentopo-key')?.value          || '').trim();
     return !!(slotKey || globalKey);
   }
   return true; // SRTM: no key needed
@@ -4182,11 +4212,14 @@ function _showCmpRunBtn(visible) {
 }
 
 function _updateCopKeyWarning(slot) {
-  const slotKey   = (document.getElementById(`cmp-${slot}-cop-key`)?.value || '').trim();
-  const globalKey = (document.getElementById('opentopo-key')?.value || '').trim();
-  const warn = document.getElementById(`cmp-${slot}-cop-warn`);
+  const copKey    = (document.getElementById(`cmp-${slot}-cop-key`)?.value  || '').trim();
+  const aw3dKey   = (document.getElementById(`cmp-${slot}-aw3d-key`)?.value || '').trim();
+  const globalKey = (document.getElementById('opentopo-key')?.value         || '').trim();
   const type  = slot === 'a' ? cmpSrcTypeA : cmpSrcTypeB;
-  if (warn) warn.style.display = (type === 'copernicus' && !(slotKey || globalKey)) ? '' : 'none';
+  const copWarn  = document.getElementById(`cmp-${slot}-cop-warn`);
+  const aw3dWarn = document.getElementById(`cmp-${slot}-aw3d-warn`);
+  if (copWarn)  copWarn.style.display  = (type === 'copernicus' && !(copKey  || globalKey)) ? '' : 'none';
+  if (aw3dWarn) aw3dWarn.style.display = (type === 'aw3d30'     && !(aw3dKey || globalKey)) ? '' : 'none';
   _checkCmpReady();
 }
 
@@ -4357,6 +4390,10 @@ async function runComparisonAnalysis() {
       else if (src === 'ibge_mde') ibgeMdeBuffer    = buf;
     } else if (type === 'copernicus') {
       const slotKey = (document.getElementById(`cmp-${slot}-cop-key`)?.value || '').trim();
+      if (slotKey) document.getElementById('opentopo-key').value = slotKey;
+      else         document.getElementById('opentopo-key').value = savedOtKey;
+    } else if (type === 'aw3d30') {
+      const slotKey = (document.getElementById(`cmp-${slot}-aw3d-key`)?.value || '').trim();
       if (slotKey) document.getElementById('opentopo-key').value = slotKey;
       else         document.getElementById('opentopo-key').value = savedOtKey;
     }
