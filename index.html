@@ -919,6 +919,14 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
               <button class="dem-info-btn" onclick="showDEMInfo('aw3d_free',this,event)" title="Detalhes"><i class="fa fa-info-circle"></i></button>
             </label>
 
+            <label class="radio-item" onclick="selectDEM('ibge_mde')">
+              <input type="radio" name="dem-src" value="ibge_mde">
+              <div class="radio-label">
+                <div class="radio-name">IBGE MDE 20m<span class="resolution-badge res-free">GRÁTIS</span></div>
+              </div>
+              <button class="dem-info-btn" onclick="showDEMInfo('ibge_mde',this,event)" title="Detalhes"><i class="fa fa-info-circle"></i></button>
+            </label>
+
             <!-- opentopo-key hidden — key managed server-side via OPENTOPO_KEY env var -->
             <input type="hidden" id="opentopo-key" value="">
 
@@ -1032,6 +1040,7 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
                 <button class="cmp-src-btn" id="cmp-a-src-srtm" onclick="_setCmpSrc('a','srtm')">SRTM 30m</button>
                 <button class="cmp-src-btn" id="cmp-a-src-copernicus" onclick="_setCmpSrc('a','copernicus')">Copernicus</button>
                 <button class="cmp-src-btn" id="cmp-a-src-aw3d30" onclick="_setCmpSrc('a','aw3d30')">AW3D30</button>
+                <button class="cmp-src-btn" id="cmp-a-src-ibge_mde" onclick="_setCmpSrc('a','ibge_mde')">IBGE MDE</button>
               </div>
               <div id="cmp-a-sub-geotiff">
                 <div id="cmp-a-type-row" style="font-size:11px;color:#546e7a;margin-bottom:7px;font-style:italic">
@@ -1055,6 +1064,9 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
               <div id="cmp-a-sub-aw3d30" style="display:none">
                 <div style="font-size:10px;color:#78909c;line-height:1.5;display:flex;align-items:center;gap:4px"><span><i class="fa fa-satellite fa-xs" style="color:#42a5f5"></i> AW3D30 JAXA 30m via OpenTopography</span><button class="dem-info-btn" onclick="showDEMInfo('aw3d_free',this,event)" title="Detalhes"><i class="fa fa-info-circle"></i></button></div>
               </div>
+              <div id="cmp-a-sub-ibge_mde" style="display:none">
+                <div style="font-size:10px;color:#78909c;line-height:1.5;display:flex;align-items:center;gap:4px"><span><i class="fa fa-mountain fa-xs" style="color:#66bb6a"></i> IBGE MDE ~20m (RJ/SC/SP/MG/GO) — via /api/ibge_dem</span><button class="dem-info-btn" onclick="showDEMInfo('ibge_mde',this,event)" title="Detalhes"><i class="fa fa-info-circle"></i></button></div>
+              </div>
             </div>
 
             <!-- Divider arrow -->
@@ -1070,6 +1082,7 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
                 <button class="cmp-src-btn" id="cmp-b-src-srtm" onclick="_setCmpSrc('b','srtm')">SRTM 30m</button>
                 <button class="cmp-src-btn" id="cmp-b-src-copernicus" onclick="_setCmpSrc('b','copernicus')">Copernicus</button>
                 <button class="cmp-src-btn" id="cmp-b-src-aw3d30" onclick="_setCmpSrc('b','aw3d30')">AW3D30</button>
+                <button class="cmp-src-btn" id="cmp-b-src-ibge_mde" onclick="_setCmpSrc('b','ibge_mde')">IBGE MDE</button>
               </div>
               <div id="cmp-b-sub-geotiff">
                 <div id="cmp-b-type-row" style="font-size:11px;color:#546e7a;margin-bottom:7px;font-style:italic">
@@ -1092,6 +1105,9 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
               </div>
               <div id="cmp-b-sub-aw3d30" style="display:none">
                 <div style="font-size:10px;color:#78909c;line-height:1.5;display:flex;align-items:center;gap:4px"><span><i class="fa fa-satellite fa-xs" style="color:#42a5f5"></i> AW3D30 JAXA 30m via OpenTopography</span><button class="dem-info-btn" onclick="showDEMInfo('aw3d_free',this,event)" title="Detalhes"><i class="fa fa-info-circle"></i></button></div>
+              </div>
+              <div id="cmp-b-sub-ibge_mde" style="display:none">
+                <div style="font-size:10px;color:#78909c;line-height:1.5;display:flex;align-items:center;gap:4px"><span><i class="fa fa-mountain fa-xs" style="color:#66bb6a"></i> IBGE MDE ~20m (RJ/SC/SP/MG/GO) — via /api/ibge_dem</span><button class="dem-info-btn" onclick="showDEMInfo('ibge_mde',this,event)" title="Detalhes"><i class="fa fa-info-circle"></i></button></div>
               </div>
             </div>
 
@@ -3047,6 +3063,43 @@ async function fetchAW3D30FromAPI(sw, ne, setStep) {
   };
 }
 
+// ── IBGE MDE ~20m — server-side tile fetch via /api/ibge_dem ─────────────────
+async function fetchIBGEFromAPI(sw, ne, setStep) {
+  setStep(15, 'Consultando IBGE MDE (/api/ibge_dem)...');
+  const params = new URLSearchParams({
+    south: sw.lat.toFixed(5), north: ne.lat.toFixed(5),
+    west:  sw.lng.toFixed(5), east:  ne.lng.toFixed(5),
+  });
+  const resp = await fetch(`/api/ibge_dem?${params}`);
+  if (!resp.ok) {
+    const txt = await resp.text().catch(() => '');
+    let msg = txt;
+    try { msg = JSON.parse(txt).error || txt; } catch(_) {}
+    throw new Error(`IBGE MDE ${resp.status}: ${msg.slice(0, 300)}`);
+  }
+  setStep(55, 'Decodificando IBGE MDE...');
+  const json = await resp.json();
+  const { width: totW, height: totH, west: oW, east: oE, south: oS, north: oN,
+          nodata: ibgeNodata, data, tiles_loaded, tiles_requested } = json;
+  const binStr = atob(data);
+  const bytes  = new Uint8Array(binStr.length);
+  for (let i = 0; i < binStr.length; i++) bytes[i] = binStr.charCodeAt(i);
+  const raw  = new Int16Array(bytes.buffer);
+  const grid = new Float32Array(totW * totH);
+  for (let i = 0; i < raw.length; i++)
+    grid[i] = (raw[i] === ibgeNodata || raw[i] <= -32000) ? DEM_NODATA : raw[i];
+  const clr    = ((oN + oS) / 2) * Math.PI / 180;
+  const cellMx = ((oE - oW) / totW) * 111320 * Math.cos(clr);
+  const cellMy = ((oN - oS) / totH) * 111320;
+  return {
+    grid, totH, totW,
+    cellM:    (cellMx + cellMy) / 2,
+    tileCount: tiles_requested || 1,
+    nwLat: oN, nwLng: oW,
+    seLat: oS, seLng: oE,
+  };
+}
+
 async function runRealDEMAnalysis(setStep, colorScheme = null) {
   const bounds = aoiLayer ? aoiLayer.getBounds() : map.getBounds();
   const sw = bounds.getSouthWest(), ne = bounds.getNorthEast();
@@ -3093,11 +3146,12 @@ async function runRealDEMAnalysis(setStep, colorScheme = null) {
     ({ grid, totH, totW, cellM, tileCount, nwLat, nwLng, seLat, seLng } = nm6);
     setStep(72, 'Calculando declividade — método de Horn (NEXTMap 6 DTM)...');
 
-  } else if (selectedDEM === 'ibge_mde' && ibgeMdeBuffer) {
-    // ── IBGE MDE 20m (Projeto RJ-25) — UTM EPSG:31983, auto-converted to WGS84 ─
-    const mde = await fetchAW3D25FromFile(sw, ne, setStep, ibgeMdeBuffer);
+  } else if (selectedDEM === 'ibge_mde') {
+    // ── IBGE MDE ~20m — API-first (IBGE FTP tiles via /api/ibge_dem), file fallback ─
+    const mde = ibgeMdeBuffer
+      ? await fetchAW3D25FromFile(sw, ne, setStep, ibgeMdeBuffer)
+      : await fetchIBGEFromAPI(sw, ne, setStep);
     ({ grid, totH, totW, cellM, tileCount, nwLat, nwLng, seLat, seLng } = mde);
-    setStep(72, 'Calculando declividade — método de Horn (IBGE MDE 20m)...');
 
   } else {
     // ── SRTM / AW3D Standard (no file): AWS Terrain Tiles (Terrarium, zoom 12) ──
@@ -3874,7 +3928,7 @@ function _setCmpSrc(slot, type) {
   if (slot === 'a') cmpSrcTypeA = type;
   else              cmpSrcTypeB = type;
 
-  ['geotiff','srtm','copernicus','aw3d30'].forEach(t => {
+  ['geotiff','srtm','copernicus','aw3d30','ibge_mde'].forEach(t => {
     const btn = document.getElementById(`cmp-${slot}-src-${t}`);
     if (btn) btn.classList.toggle('active', t === type);
     const sub = document.getElementById(`cmp-${slot}-sub-${t}`);
@@ -3890,6 +3944,9 @@ function _setCmpSrc(slot, type) {
   } else if (type === 'aw3d30') {
     if (slot === 'a') { cmpSrcA = 'aw3d_free'; _cmpDetectedLabelA = null; }
     else              { cmpSrcB = 'aw3d_free'; _cmpDetectedLabelB = null; }
+  } else if (type === 'ibge_mde') {
+    if (slot === 'a') { cmpSrcA = 'ibge_mde'; _cmpDetectedLabelA = null; }
+    else              { cmpSrcB = 'ibge_mde'; _cmpDetectedLabelB = null; }
   }
 
   _updateCmpEstimation();
