@@ -3978,9 +3978,7 @@ function _updateCmpEstimation() {
   const warn  = document.getElementById('cmp-aoi-warn');
   if (!panel || !warn) return;
 
-  const bothApi = cmpSrcTypeA !== 'geotiff' && cmpSrcTypeB !== 'geotiff';
-  warn.style.display = bothApi ? 'block' : 'none';
-  if (bothApi) _loadIbgeStates();
+  warn.style.display = 'none'; // AOI section now shown at top of Pesquisa sidebar
 
   const hasApiSlot = cmpSrcTypeA !== 'geotiff' || cmpSrcTypeB !== 'geotiff';
   if (!hasApiSlot) { panel.style.display = 'none'; return; }
