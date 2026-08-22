@@ -13,7 +13,7 @@ import uuid
 import zipfile
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 
-PORT = 8080
+PORT = 8888
 
 # ── UP42 ジオメトリ正規化ヘルパー ─────────────────────────────────────────────
 def _aoi_bbox_polygon(geom: dict) -> dict:

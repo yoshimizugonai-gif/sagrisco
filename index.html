@@ -879,6 +879,15 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
               <span class="aoi-stat-val" id="aoi-status" style="color:#546e7a">Não definida</span>
             </div>
           </div>
+          <!-- Área Urbana layer toggle -->
+          <div style="margin-top:7px;border-top:1px solid #263545;padding-top:6px">
+            <button id="btn-area-urbana" onclick="toggleAreaUrbana()"
+              style="width:100%;padding:5px 8px;background:rgba(255,179,0,.06);border:1px solid rgba(255,179,0,.2);
+                     border-radius:4px;color:#ffb300;font-size:11px;cursor:pointer;text-align:left">
+              <i class="fa fa-th fa-xs"></i>&nbsp;Área Urbana (IBGE)
+              <span id="au-badge" style="float:right;font-size:10px;color:#546e7a">OFF</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1769,6 +1778,9 @@ let _dynMunicCode   = null;   // IBGE code of dynamically selected municipality
 let _dynMunicName   = '';     // "Nome, UF" format
 let _dynMunicUf     = '';
 let aoiLayer     = null;
+let areaUrbanaLayer  = null;
+let _areaUrbanaOn    = false;
+let _activeIbgeCode  = null;
 let slopeLayer        = null;
 let slopeRasterLayer  = null; // canvas image overlay for real DEM
 let analysisRun  = false;
@@ -3640,6 +3652,61 @@ function renderAOI(data, pan=true) {
   _updateStepper();
 }
 
+// ── Área Urbana (IBGE Setores Censitários — perímetro urbano) ────────────────
+async function _loadAreaUrbana(code) {
+  if (areaUrbanaLayer) {
+    try { layerControl.removeLayer(areaUrbanaLayer); map.removeLayer(areaUrbanaLayer); } catch(e){}
+    areaUrbanaLayer = null;
+  }
+  if (!code) return;
+  const badge = document.getElementById('au-badge');
+  if (badge) { badge.textContent = '…'; badge.style.color = '#ffb300'; }
+  try {
+    const r = await fetch(`area_urbana/${code}.geojson`);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const gj = await r.json();
+    areaUrbanaLayer = L.geoJSON(gj, {
+      style: { color:'#f57f17', weight:1, opacity:0.7, fillColor:'#ffca28', fillOpacity:0.18 },
+      interactive: false
+    });
+    areaUrbanaLayer.addTo(map);
+    layerControl.addOverlay(areaUrbanaLayer,
+      '<i class="fa fa-th fa-xs" style="color:#ffca28"></i>&nbsp;Área Urbana (IBGE)');
+    if (badge) { badge.textContent = 'ON'; badge.style.color = '#ffb300'; }
+  } catch(err) {
+    console.info('[AreaUrbana] Not in 821-city list:', code, err.message);
+    if (badge) { badge.textContent = 'N/D'; badge.style.color = '#546e7a'; }
+    const btn = document.getElementById('btn-area-urbana');
+    if (btn) { btn.style.background = 'rgba(255,179,0,.06)'; btn.style.borderColor = 'rgba(255,179,0,.2)'; }
+    _areaUrbanaOn = false;
+  }
+}
+
+function toggleAreaUrbana() {
+  _areaUrbanaOn = !_areaUrbanaOn;
+  const badge = document.getElementById('au-badge');
+  const btn   = document.getElementById('btn-area-urbana');
+  if (_areaUrbanaOn) {
+    if (badge) { badge.textContent = '…'; badge.style.color = '#ffb300'; }
+    if (btn)   { btn.style.background = 'rgba(255,179,0,.18)'; btn.style.borderColor = 'rgba(255,179,0,.6)'; }
+    if (_activeIbgeCode) {
+      _loadAreaUrbana(_activeIbgeCode);
+    } else {
+      if (badge) { badge.textContent = 'OFF'; badge.style.color = '#546e7a'; }
+      if (btn)   { btn.style.background = 'rgba(255,179,0,.06)'; btn.style.borderColor = 'rgba(255,179,0,.2)'; }
+      _areaUrbanaOn = false;
+      toast('info', '<i class="fa fa-info-circle" style="color:#78909c"></i>&nbsp;Defina o município (AOI) primeiro.');
+    }
+  } else {
+    if (badge) { badge.textContent = 'OFF'; badge.style.color = '#546e7a'; }
+    if (btn)   { btn.style.background = 'rgba(255,179,0,.06)'; btn.style.borderColor = 'rgba(255,179,0,.2)'; }
+    if (areaUrbanaLayer) {
+      try { layerControl.removeLayer(areaUrbanaLayer); map.removeLayer(areaUrbanaLayer); } catch(e){}
+      areaUrbanaLayer = null;
+    }
+  }
+}
+
 // ── Load municipality boundary from IBGE Malhas API (open data) ──
 // API: https://servicodados.ibge.gov.br/api/v3/malhas/municipios/{codigo}?formato=application/vnd.geo+json
 // Docs: https://servicodados.ibge.gov.br/api/docs/malhas?versao=3
@@ -3692,6 +3759,8 @@ async function loadMunicBoundary(munVal, pan=true) {
     toast('ok',
       `<i class="fa fa-map" style="color:#42a5f5"></i>&nbsp;Limite oficial carregado: <b>${meta.name}</b>`
       + ` — IBGE cód. ${meta.ibge} (Malhas API)`);
+    _activeIbgeCode = String(meta.ibge).padStart(7,'0');
+    if (_areaUrbanaOn) _loadAreaUrbana(_activeIbgeCode);
 
   } catch(err) {
     console.warn('IBGE Malhas API error:', err);
@@ -3713,6 +3782,7 @@ async function loadMunicBoundary(munVal, pan=true) {
     toast('warn',
       `<i class="fa fa-exclamation-triangle" style="color:#ffa726"></i>&nbsp;IBGE API indisponível.`
       + ` Limite aproximado utilizado para <b>${meta.name}</b>.`);
+    if (meta.ibge) { _activeIbgeCode = String(meta.ibge).padStart(7,'0'); if (_areaUrbanaOn) _loadAreaUrbana(_activeIbgeCode); }
   }
 }
 
@@ -5655,6 +5725,8 @@ async function loadMunicByIbge(ibgeCode, municName, uf) {
     updateDot('aoi', true);
     checkReady();
     toast('ok', `<i class="fa fa-map" style="color:#42a5f5"></i>&nbsp;AOI: <b>${_dynMunicName}</b>`);
+    _activeIbgeCode = String(ibgeCode).padStart(7,'0');
+    if (_areaUrbanaOn) _loadAreaUrbana(_activeIbgeCode);
   } catch(err) {
     document.getElementById('aoi-status').textContent = 'Erro IBGE';
     document.getElementById('aoi-status').style.color = '#ef5350';
