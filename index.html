@@ -879,14 +879,25 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
               <span class="aoi-stat-val" id="aoi-status" style="color:#546e7a">Não definida</span>
             </div>
           </div>
+          <!-- 821 priority municipality info panel -->
+          <div id="munic-821-info" style="display:none;margin-top:6px;border-top:1px solid #263545;padding-top:6px">
+            <div style="font-size:10px;color:#78909c;margin-bottom:5px;letter-spacing:.3px">
+              <i class="fa fa-exclamation-triangle fa-xs" style="color:#ffa726"></i>&nbsp;821 MUNICÍPIOS PRIORITÁRIOS
+            </div>
+            <div id="m821-hazards" style="display:flex;gap:3px;flex-wrap:wrap;margin-bottom:5px"></div>
+            <div id="m821-details" style="font-size:11px;color:#90a4ae;line-height:1.8"></div>
+          </div>
+
           <!-- Área Urbana layer toggle -->
-          <div style="margin-top:7px;border-top:1px solid #263545;padding-top:6px">
+          <div style="margin-top:7px;border-top:1px solid #263545;padding-top:6px;display:flex;gap:4px;align-items:center">
             <button id="btn-area-urbana" onclick="toggleAreaUrbana()"
-              style="width:100%;padding:5px 8px;background:rgba(255,179,0,.06);border:1px solid rgba(255,179,0,.2);
-                     border-radius:4px;color:#ffb300;font-size:11px;cursor:pointer;text-align:left">
+              style="flex:1;padding:5px 8px;background:rgba(255,179,0,.06);border:1px solid rgba(255,179,0,.2);
+                     border-radius:4px;color:#ffb300;font-size:11px;cursor:pointer;text-align:left;min-width:0">
               <i class="fa fa-th fa-xs"></i>&nbsp;Área Urbana (IBGE)
               <span id="au-badge" style="float:right;font-size:10px;color:#546e7a">OFF</span>
             </button>
+            <button class="dem-info-btn" onclick="_showAreaUrbanaInfo(this,event)" title="Sobre este dado"
+              style="color:#ffb300;flex-shrink:0"><i class="fa fa-info-circle"></i></button>
           </div>
         </div>
       </div>
@@ -1571,6 +1582,7 @@ if (window.SAGRISCO_BUILDINGS && !window.SAGRISCO_BUILDINGS_BARBACENA)
   window.SAGRISCO_BUILDINGS_BARBACENA = window.SAGRISCO_BUILDINGS;
 </script>
 <script src="nova_friburgo_buildings.js" onerror="void(0)"></script>
+<script src="munic_821.js" onerror="void(0)"></script>
 <script>
 'use strict';
 // ── AUTENTICAÇÃO ──────────────────────────────────────────────
@@ -3652,6 +3664,45 @@ function renderAOI(data, pan=true) {
   _updateStepper();
 }
 
+// ── 821 Priority Municipality Info ───────────────────────────────────────────
+function _updateMunic821Info(ibgeCode) {
+  const panel = document.getElementById('munic-821-info');
+  if (!panel) return;
+  const code = ibgeCode ? String(ibgeCode).padStart(7,'0') : null;
+  const data  = code && window.MUNIC_821 && window.MUNIC_821[code];
+  if (!data) { panel.style.display = 'none'; return; }
+
+  const hDiv = document.getElementById('m821-hazards');
+  const dDiv = document.getElementById('m821-details');
+
+  const chip = (label, bg, color, border) =>
+    `<span style="background:${bg};color:${color};border:1px solid ${border};` +
+    `border-radius:3px;padding:1px 7px;font-size:10px;white-space:nowrap">${label}</span>`;
+
+  const badges = [];
+  if (data.flash) badges.push(chip('Enxurrada',   'rgba(33,150,243,.22)',  '#64b5f6', 'rgba(33,150,243,.45)'));
+  if (data.flood) badges.push(chip('Inundação',    'rgba(0,188,212,.18)',   '#4dd0e1', 'rgba(0,188,212,.4)'));
+  if (data.land)  badges.push(chip('Deslizamento', 'rgba(255,152,0,.2)',    '#ffb74d', 'rgba(255,152,0,.4)'));
+  hDiv.innerHTML = badges.length ? badges.join('') :
+    `<span style="color:#546e7a;font-size:10px">Sem perigo específico cadastrado</span>`;
+
+  const suscHtml = data.susc
+    ? '<span style="color:#66bb6a">✓ Elaborada</span>'
+    : '<span style="color:#ffa726">⚠ Não elaborada</span>';
+  const s2idHtml = data.s2id
+    ? '<span style="color:#66bb6a">✓</span>'
+    : '<span style="color:#546e7a">—</span>';
+  const popStr = data.pop ? data.pop.toLocaleString('pt-BR') + ' hab.' : '—';
+  const areaStr = data.area ? data.area.toLocaleString('pt-BR') + ' km²' : '—';
+  dDiv.innerHTML =
+    `<span style="color:#78909c">Carta de Suscetibilidade:</span> ${suscHtml}<br>` +
+    `<span style="color:#78909c">S2ID:</span> ${s2idHtml}` +
+    `&nbsp;&nbsp;<span style="color:#78909c">Pop.:</span> ${popStr}` +
+    `&nbsp;&nbsp;<span style="color:#78909c">Área:</span> ${areaStr}`;
+
+  panel.style.display = 'block';
+}
+
 // ── Área Urbana (IBGE Setores Censitários — perímetro urbano) ────────────────
 async function _loadAreaUrbana(code) {
   if (areaUrbanaLayer) {
@@ -3761,6 +3812,7 @@ async function loadMunicBoundary(munVal, pan=true) {
       + ` — IBGE cód. ${meta.ibge} (Malhas API)`);
     _activeIbgeCode = String(meta.ibge).padStart(7,'0');
     if (_areaUrbanaOn) _loadAreaUrbana(_activeIbgeCode);
+    _updateMunic821Info(meta.ibge);
 
   } catch(err) {
     console.warn('IBGE Malhas API error:', err);
@@ -3782,7 +3834,7 @@ async function loadMunicBoundary(munVal, pan=true) {
     toast('warn',
       `<i class="fa fa-exclamation-triangle" style="color:#ffa726"></i>&nbsp;IBGE API indisponível.`
       + ` Limite aproximado utilizado para <b>${meta.name}</b>.`);
-    if (meta.ibge) { _activeIbgeCode = String(meta.ibge).padStart(7,'0'); if (_areaUrbanaOn) _loadAreaUrbana(_activeIbgeCode); }
+    if (meta.ibge) { _activeIbgeCode = String(meta.ibge).padStart(7,'0'); if (_areaUrbanaOn) _loadAreaUrbana(_activeIbgeCode); _updateMunic821Info(meta.ibge); }
   }
 }
 
@@ -5727,6 +5779,7 @@ async function loadMunicByIbge(ibgeCode, municName, uf) {
     toast('ok', `<i class="fa fa-map" style="color:#42a5f5"></i>&nbsp;AOI: <b>${_dynMunicName}</b>`);
     _activeIbgeCode = String(ibgeCode).padStart(7,'0');
     if (_areaUrbanaOn) _loadAreaUrbana(_activeIbgeCode);
+    _updateMunic821Info(ibgeCode);
   } catch(err) {
     document.getElementById('aoi-status').textContent = 'Erro IBGE';
     document.getElementById('aoi-status').style.color = '#ef5350';
@@ -12329,6 +12382,32 @@ function _hideDEMInfoDelay() {
   }, 250);
 }
 function _cancelDEMInfoHide() { clearTimeout(_demInfoHideTimer); }
+
+function _showAreaUrbanaInfo(btn, e) {
+  e.stopPropagation();
+  const popup = document.getElementById('dem-info-popup');
+  popup.innerHTML = _INFO_CLOSE_BTN + `
+    <b style="color:#ffb300"><i class="fa fa-th fa-xs"></i>&nbsp;Área Urbana (IBGE) — Nota</b><br>
+    <span style="color:#b0bec5;line-height:1.7;display:block;margin-top:5px">
+      Este dado <b style="color:#e0e0e0">não</b> representa a Área Urbana no sentido
+      jurídico estrito — ou seja, a zona urbana definida pelo <em>Plano Diretor</em>
+      ou por lei municipal específica.<br><br>
+      Trata-se das áreas classificadas como <b style="color:#e0e0e0">«Urbana»</b>
+      na <em>Malha de Setores Censitários</em> do IBGE (Censo 2022).<br><br>
+      Embora não seja a delimitação legal oficial, considera-se que os dados são
+      suficientemente representativos para uso como
+      <b style="color:#e0e0e0">informação de referência</b>.
+    </span>`;
+  popup.style.display = 'block';
+  const rect = btn.getBoundingClientRect();
+  const popW = 260, popH = popup.offsetHeight || 180;
+  let left = rect.right + 6;
+  let top  = rect.top;
+  if (left + popW > window.innerWidth)  left = rect.left - popW - 4;
+  if (top  + popH > window.innerHeight) top  = window.innerHeight - popH - 8;
+  popup.style.left = left + 'px';
+  popup.style.top  = top  + 'px';
+}
 
 function showDEMInfo(src, btn, e) {
   e.stopPropagation();
