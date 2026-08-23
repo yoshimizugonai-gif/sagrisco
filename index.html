@@ -3409,6 +3409,12 @@ map.on('overlayremove', e => {
               <div style="width:8px;height:8px;border-radius:50%;background:#ff8a65;flex-shrink:0"></div>
               Ponto base (▼)
             </div>
+            <div id="map-leg-contour-info" style="display:none;margin-top:6px;padding-top:5px;border-top:1px solid rgba(255,255,255,.08)">
+              <div style="font-size:10px;color:#90a4ae;font-weight:600;margin-bottom:3px">
+                <i class="fa fa-layer-group fa-xs"></i>&nbsp;Curvas de Nível
+              </div>
+              <div id="map-leg-contour-src" style="font-size:10px;color:#546e7a;line-height:1.8"></div>
+            </div>
           </div>
           <div id="map-leg-acad-cmp" style="display:none" class="map-leg-sec">
             <div class="map-leg-sec-title"><i class="fa fa-draw-polygon fa-xs" style="color:#90a4ae"></i>&nbsp;AC / AD — Comparação</div>
@@ -3438,6 +3444,7 @@ function _clearFluxoResults() {
   if (topBotLayer)   { try { layerControl.removeLayer(topBotLayer);   map.removeLayer(topBotLayer);   } catch(e){} topBotLayer   = null; }
   if (contourMajorLayer) { try { layerControl.removeLayer(contourMajorLayer); map.removeLayer(contourMajorLayer); } catch(e){} contourMajorLayer = null; }
   if (contourMinorLayer) { try { layerControl.removeLayer(contourMinorLayer); map.removeLayer(contourMinorLayer); } catch(e){} contourMinorLayer = null; }
+  const _lci1 = document.getElementById('map-leg-contour-info'); if (_lci1) _lci1.style.display = 'none';
   if (acGroupLayer)  { try { layerControl.removeLayer(acGroupLayer);  map.removeLayer(acGroupLayer);  } catch(e){} acGroupLayer  = null; }
   if (adGroupLayer)  { try { layerControl.removeLayer(adGroupLayer);  map.removeLayer(adGroupLayer);  } catch(e){} adGroupLayer  = null; }
   if (selectedZoneHighlight) { try { map.removeLayer(selectedZoneHighlight); } catch(e){} selectedZoneHighlight = null; }
@@ -6302,6 +6309,7 @@ async function runSteps3to4RealDEM(st) {
     if (topBotLayer)   { layerControl.removeLayer(topBotLayer);   map.removeLayer(topBotLayer);   topBotLayer=null; }
     if (contourMajorLayer) { layerControl.removeLayer(contourMajorLayer); map.removeLayer(contourMajorLayer); contourMajorLayer=null; }
     if (contourMinorLayer) { layerControl.removeLayer(contourMinorLayer); map.removeLayer(contourMinorLayer); contourMinorLayer=null; }
+    const _lci2 = document.getElementById('map-leg-contour-info'); if (_lci2) _lci2.style.display = 'none';
     if (acGroupLayer)  { layerControl.removeLayer(acGroupLayer);  map.removeLayer(acGroupLayer);  acGroupLayer=null; }
     if (adGroupLayer)  { layerControl.removeLayer(adGroupLayer);  map.removeLayer(adGroupLayer);  adGroupLayer=null; }
     acLayerMap={}; adLayerMap={}; acPolyData={}; adPolyData={}; zoneStatus={}; zoneComments={}; hazardIndicia={}; hazardLevel={}; vulnerabilityLevel={}; riskLevel={};
@@ -6316,6 +6324,8 @@ async function runSteps3to4RealDEM(st) {
     await delay(20);
 
     if (cGJ) {
+      const _demLbl = (DEM_META[selectedDEM] || {}).name || selectedDEM;
+
       // 計曲線 (curvas mestras): casing + thick line + elevation labels
       const casingLyr = L.geoJSON(cGJ, {
         filter: f => f.properties.major,
@@ -6338,7 +6348,8 @@ async function runSteps3to4RealDEM(st) {
       });
       contourMajorLayer = L.layerGroup([casingLyr, majorLinesLyr, L.layerGroup(lbls)]).addTo(map);
       layerControl.addOverlay(contourMajorLayer,
-        `<i class="fa fa-minus fa-xs" style="color:#976f0a"></i>&nbsp;Curvas Mestras (${_contourMajorInt} m)`);
+        `<i class="fa fa-minus fa-xs" style="color:#976f0a"></i>&nbsp;Curvas Mestras (${_contourMajorInt} m)` +
+        `<div style="font-size:10px;color:#546e7a;padding-left:14px;line-height:1.4">${_demLbl}</div>`);
 
       // 主曲線 (curvas intermediárias): thin lines only
       const minorLinesLyr = L.geoJSON(cGJ, {
@@ -6347,7 +6358,19 @@ async function runSteps3to4RealDEM(st) {
       });
       contourMinorLayer = L.layerGroup([minorLinesLyr]).addTo(map);
       layerControl.addOverlay(contourMinorLayer,
-        `<i class="fa fa-minus fa-xs" style="color:#976f0a;opacity:.6"></i>&nbsp;Curvas Intermediárias (${_contourMinorInt} m)`);
+        `<i class="fa fa-minus fa-xs" style="color:#976f0a;opacity:.6"></i>&nbsp;Curvas Intermediárias (${_contourMinorInt} m)` +
+        `<div style="font-size:10px;color:#546e7a;padding-left:14px;line-height:1.4">${_demLbl}</div>`);
+
+      // 凡例に等高線情報を反映
+      const _legSrc = document.getElementById('map-leg-contour-src');
+      const _legCnt = document.getElementById('map-leg-contour-info');
+      if (_legSrc) {
+        _legSrc.innerHTML =
+          `Fonte: <b style="color:#cfd8dc">${_demLbl}</b><br>` +
+          `<span style="color:#976f0a;font-weight:600">──</span> Mestras: ${_contourMajorInt} m` +
+          `&emsp;<span style="color:#976f0a;opacity:.6">─</span> Intermediárias: ${_contourMinorInt} m`;
+      }
+      if (_legCnt) _legCnt.style.display = '';
     }
 
     setStep(55, 'Detectando zonas de risco (θ ≥ 25°)...');
@@ -12304,6 +12327,7 @@ function onMunicChange() {
   if (topBotLayer)   { layerControl.removeLayer(topBotLayer);   map.removeLayer(topBotLayer);   topBotLayer=null; }
   if (contourMajorLayer) { layerControl.removeLayer(contourMajorLayer); map.removeLayer(contourMajorLayer); contourMajorLayer=null; }
   if (contourMinorLayer) { layerControl.removeLayer(contourMinorLayer); map.removeLayer(contourMinorLayer); contourMinorLayer=null; }
+  const _lci3 = document.getElementById('map-leg-contour-info'); if (_lci3) _lci3.style.display = 'none';
   if (acGroupLayer)  { layerControl.removeLayer(acGroupLayer);  map.removeLayer(acGroupLayer);  acGroupLayer=null; }
   if (adGroupLayer)  { layerControl.removeLayer(adGroupLayer);  map.removeLayer(adGroupLayer);  adGroupLayer=null; }
   if (buildingLayer) { layerControl.removeLayer(buildingLayer); map.removeLayer(buildingLayer); buildingLayer=null; }
