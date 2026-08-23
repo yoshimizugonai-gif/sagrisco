@@ -1872,7 +1872,8 @@ let transectLayer    = null;
 let topBotLayer      = null;
 let acLayer          = null;
 let adLayer          = null;
-let contourLayer     = null;
+let contourMajorLayer = null;   // 計曲線 (index contours)
+let contourMinorLayer = null;   // 主曲線 (intermediate contours)
 let step34Done       = false;
 let step6Done        = false;
 let _lastRpStep      = 1;
@@ -3435,7 +3436,8 @@ function _clearFluxoResults() {
   // Stage 2 layers
   if (transectLayer) { try { layerControl.removeLayer(transectLayer); map.removeLayer(transectLayer); } catch(e){} transectLayer = null; }
   if (topBotLayer)   { try { layerControl.removeLayer(topBotLayer);   map.removeLayer(topBotLayer);   } catch(e){} topBotLayer   = null; }
-  if (contourLayer)  { try { layerControl.removeLayer(contourLayer);  map.removeLayer(contourLayer);  } catch(e){} contourLayer  = null; }
+  if (contourMajorLayer) { try { layerControl.removeLayer(contourMajorLayer); map.removeLayer(contourMajorLayer); } catch(e){} contourMajorLayer = null; }
+  if (contourMinorLayer) { try { layerControl.removeLayer(contourMinorLayer); map.removeLayer(contourMinorLayer); } catch(e){} contourMinorLayer = null; }
   if (acGroupLayer)  { try { layerControl.removeLayer(acGroupLayer);  map.removeLayer(acGroupLayer);  } catch(e){} acGroupLayer  = null; }
   if (adGroupLayer)  { try { layerControl.removeLayer(adGroupLayer);  map.removeLayer(adGroupLayer);  } catch(e){} adGroupLayer  = null; }
   if (selectedZoneHighlight) { try { map.removeLayer(selectedZoneHighlight); } catch(e){} selectedZoneHighlight = null; }
@@ -6007,6 +6009,7 @@ function computeAspect(grid, nR, nC) {
 }
 
 let _contourMinorInt = 5;
+let _contourMajorInt = 20;
 function genContourLinesGeoJSON(elevGrid, slopeArr, totW, totH, nwLat, nwLng, seLat, seLng, cellM) {
   if (typeof d3 === 'undefined' || !d3.contours) return null;
   let mn = Infinity, mx = -Infinity;
@@ -6016,6 +6019,7 @@ function genContourLinesGeoJSON(elevGrid, slopeArr, totW, totH, nwLat, nwLng, se
   if (!isFinite(mn)) return null;
   const minorInt = 5, majorInt = 20;
   _contourMinorInt = minorInt;
+  _contourMajorInt = majorInt;
   const thresholds = [];
   for (let e = Math.ceil(mn/minorInt)*minorInt; e <= mx; e += minorInt) thresholds.push(e);
   const lpp = (seLng - nwLng) / totW, lap = (nwLat - seLat) / totH;
@@ -6296,7 +6300,8 @@ async function runSteps3to4RealDEM(st) {
     const cellM = st.cellM || 30;
     if (transectLayer) { layerControl.removeLayer(transectLayer); map.removeLayer(transectLayer); transectLayer=null; }
     if (topBotLayer)   { layerControl.removeLayer(topBotLayer);   map.removeLayer(topBotLayer);   topBotLayer=null; }
-    if (contourLayer)  { layerControl.removeLayer(contourLayer);  map.removeLayer(contourLayer);  contourLayer=null; }
+    if (contourMajorLayer) { layerControl.removeLayer(contourMajorLayer); map.removeLayer(contourMajorLayer); contourMajorLayer=null; }
+    if (contourMinorLayer) { layerControl.removeLayer(contourMinorLayer); map.removeLayer(contourMinorLayer); contourMinorLayer=null; }
     if (acGroupLayer)  { layerControl.removeLayer(acGroupLayer);  map.removeLayer(acGroupLayer);  acGroupLayer=null; }
     if (adGroupLayer)  { layerControl.removeLayer(adGroupLayer);  map.removeLayer(adGroupLayer);  adGroupLayer=null; }
     acLayerMap={}; adLayerMap={}; acPolyData={}; adPolyData={}; zoneStatus={}; zoneComments={}; hazardIndicia={}; hazardLevel={}; vulnerabilityLevel={}; riskLevel={};
@@ -6311,15 +6316,14 @@ async function runSteps3to4RealDEM(st) {
     await delay(20);
 
     if (cGJ) {
-      // borda branca (casing) — somente curvas mestras, camada inferior
+      // 計曲線 (curvas mestras): casing + thick line + elevation labels
       const casingLyr = L.geoJSON(cGJ, {
         filter: f => f.properties.major,
         style: () => ({ color:'#ffffff', weight:2.2, opacity:0.18, lineCap:'round', lineJoin:'round' })
       });
-      const linesLyr = L.geoJSON(cGJ, {
-        style: f => f.properties.major
-          ? { color:'#976f0a', weight:1.3, opacity:0.6 }
-          : { color:'#976f0a', weight:0.7, opacity:0.5 }
+      const majorLinesLyr = L.geoJSON(cGJ, {
+        filter: f => f.properties.major,
+        style: () => ({ color:'#976f0a', weight:1.3, opacity:0.6 })
       });
       const lbls = [];
       cGJ.features.forEach(f => {
@@ -6332,8 +6336,18 @@ async function runSteps3to4RealDEM(st) {
           interactive: false, keyboard: false
         }));
       });
-      contourLayer = L.layerGroup([casingLyr, linesLyr, L.layerGroup(lbls)]).addTo(map);
-      layerControl.addOverlay(contourLayer, `Curvas de Nível - intervalo de ${_contourMinorInt} m`);
+      contourMajorLayer = L.layerGroup([casingLyr, majorLinesLyr, L.layerGroup(lbls)]).addTo(map);
+      layerControl.addOverlay(contourMajorLayer,
+        `<i class="fa fa-minus fa-xs" style="color:#976f0a"></i>&nbsp;Curvas Mestras (${_contourMajorInt} m)`);
+
+      // 主曲線 (curvas intermediárias): thin lines only
+      const minorLinesLyr = L.geoJSON(cGJ, {
+        filter: f => !f.properties.major,
+        style: () => ({ color:'#976f0a', weight:0.7, opacity:0.5 })
+      });
+      contourMinorLayer = L.layerGroup([minorLinesLyr]).addTo(map);
+      layerControl.addOverlay(contourMinorLayer,
+        `<i class="fa fa-minus fa-xs" style="color:#976f0a;opacity:.6"></i>&nbsp;Curvas Intermediárias (${_contourMinorInt} m)`);
     }
 
     setStep(55, 'Detectando zonas de risco (θ ≥ 25°)...');
@@ -12288,7 +12302,8 @@ function onMunicChange() {
   if (slopeRasterLayer) { layerControl.removeLayer(slopeRasterLayer); map.removeLayer(slopeRasterLayer); slopeRasterLayer=null; }
   if (transectLayer) { layerControl.removeLayer(transectLayer); map.removeLayer(transectLayer); transectLayer=null; }
   if (topBotLayer)   { layerControl.removeLayer(topBotLayer);   map.removeLayer(topBotLayer);   topBotLayer=null; }
-  if (contourLayer)  { layerControl.removeLayer(contourLayer);  map.removeLayer(contourLayer);  contourLayer=null; }
+  if (contourMajorLayer) { layerControl.removeLayer(contourMajorLayer); map.removeLayer(contourMajorLayer); contourMajorLayer=null; }
+  if (contourMinorLayer) { layerControl.removeLayer(contourMinorLayer); map.removeLayer(contourMinorLayer); contourMinorLayer=null; }
   if (acGroupLayer)  { layerControl.removeLayer(acGroupLayer);  map.removeLayer(acGroupLayer);  acGroupLayer=null; }
   if (adGroupLayer)  { layerControl.removeLayer(adGroupLayer);  map.removeLayer(adGroupLayer);  adGroupLayer=null; }
   if (buildingLayer) { layerControl.removeLayer(buildingLayer); map.removeLayer(buildingLayer); buildingLayer=null; }
