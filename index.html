@@ -6056,32 +6056,6 @@ function genContourLinesGeoJSON(elevGrid, slopeArr, totW, totH, nwLat, nwLng, se
 // (e.g. 0.5 m DEM: 30 px = 7.5 m² — would keep every building rooftop as a zone).
 // This m²-based threshold is resolution-independent: 5000 m² ≈ 0.5 ha.
 const MIN_STEEP_AREA_M2 = 5000;
-// Target strip width (m) along contour direction for zone subdivision (Approach A)
-const STRIP_WIDTH_M = 100;
-
-// Sutherland-Hodgman clip of a geo-ring [lng,lat][] to the projection band [s0, s1].
-// aCon/refLat define the contour-direction projection axis.
-function _clipRingToStrip(geoRing, s0, s1, aCon, refLat) {
-  function proj(pt) { return geoProj(pt[0], pt[1], aCon, refLat); }
-  function interp(a, b, s) {
-    const pa = proj(a), t = (s - pa) / (proj(b) - pa);
-    return [a[0] + t*(b[0]-a[0]), a[1] + t*(b[1]-a[1])];
-  }
-  function clipHalf(pts, s, ge) {
-    if (!pts.length) return [];
-    const out = [];
-    for (let i = 0; i < pts.length; i++) {
-      const a = pts[i], b = pts[(i+1)%pts.length];
-      const aIn = ge ? proj(a) >= s : proj(a) <= s;
-      const bIn = ge ? proj(b) >= s : proj(b) <= s;
-      if (aIn) out.push(a);
-      if (aIn !== bIn) out.push(interp(a, b, s));
-    }
-    return out;
-  }
-  const clipped = clipHalf(clipHalf(geoRing, s0, true), s1, false);
-  return clipped.length >= 3 ? clipped : null;
-}
 
 function getSteepZonePolygons(slopeArr, elevGrid, totW, totH, nwLat, nwLng, seLat, seLng, cellM) {
   if (typeof d3 === 'undefined' || !d3.contours) return [];
@@ -6094,7 +6068,6 @@ function getSteepZonePolygons(slopeArr, elevGrid, totW, totH, nwLat, nwLng, seLa
   const pxArea   = pxAreaM2 / 10000;
   const zones = [];
   let idx = 0;
-
   for (const poly of raw[0].coordinates) {
     const ring = poly[0];
     let minC=Infinity, maxC=-Infinity, minR=Infinity, maxR=-Infinity;
@@ -6104,8 +6077,6 @@ function getSteepZonePolygons(slopeArr, elevGrid, totW, totH, nwLat, nwLng, seLa
     }
     const c0=Math.max(1,Math.floor(minC)), c1=Math.min(totW-2,Math.ceil(maxC));
     const r0=Math.max(1,Math.floor(minR)), r1=Math.min(totH-2,Math.ceil(maxR));
-
-    // Pass 1: global stats → mean aspect, validity check
     let sinS=0,cosS=0,slopeSum=0,elevMin=Infinity,elevMax=-Infinity,cnt=0;
     for (let r=r0; r<=r1; r++) {
       for (let c=c0; c<=c1; c++) {
@@ -6119,70 +6090,21 @@ function getSteepZonePolygons(slopeArr, elevGrid, totW, totH, nwLat, nwLng, seLa
       }
     }
     if (cnt * pxAreaM2 < MIN_STEEP_AREA_M2) continue;
-
     const meanAsp = ((Math.atan2(sinS,cosS)*180/Math.PI)+360)%360;
-    const aCon    = (meanAsp + 90) % 360;
-    const geoRing = ring.map(p2g);
-    const refLat  = geoRing.reduce((s,c) => s+c[1], 0) / geoRing.length;
-
-    // Measure zone width in contour direction to decide strip count
-    let minCP=Infinity, maxCP=-Infinity;
-    for (let r=r0; r<=r1; r++) {
-      for (let c=c0; c<=c1; c++) {
-        const ii = r*totW+c;
-        if (slopeArr[ii] < 25 || aspGrid[ii] < 0) continue;
-        const cp = geoProj(nwLng+c*lpp, nwLat-r*lap, aCon, refLat);
-        if (cp < minCP) minCP=cp; if (cp > maxCP) maxCP=cp;
-      }
-    }
-    if (!isFinite(minCP)) continue;
-
-    const zoneW   = maxCP - minCP;
-    const nStrips = Math.max(1, Math.ceil(zoneW / STRIP_WIDTH_M));
-    const stripW  = zoneW / nStrips;
-
-    // Pass 2: per-strip pixel stats (local aspect, H, area)
-    const ss = Array.from({length:nStrips}, () =>
-      ({sinS:0,cosS:0,slopeSum:0,elevMin:Infinity,elevMax:-Infinity,cnt:0}));
-    for (let r=r0; r<=r1; r++) {
-      for (let c=c0; c<=c1; c++) {
-        const ii = r*totW+c;
-        if (slopeArr[ii] < 25) continue;
-        const asp = aspGrid[ii]; if (asp < 0) continue;
-        const cp = geoProj(nwLng+c*lpp, nwLat-r*lap, aCon, refLat);
-        const si = Math.min(nStrips-1, Math.floor((cp-minCP)/stripW));
-        const st = ss[si];
-        st.sinS += Math.sin(asp*Math.PI/180); st.cosS += Math.cos(asp*Math.PI/180);
-        st.slopeSum += slopeArr[ii];
-        if (elevGrid[ii] > DEM_NODATA+1) { st.elevMin=Math.min(st.elevMin,elevGrid[ii]); st.elevMax=Math.max(st.elevMax,elevGrid[ii]); }
-        st.cnt++;
-      }
-    }
-
-    // Create one sub-zone feature per strip
-    for (let s=0; s<nStrips; s++) {
-      const st = ss[s];
-      if (st.cnt * pxAreaM2 < MIN_STEEP_AREA_M2) continue;
-      const subRing = nStrips===1
-        ? geoRing
-        : _clipRingToStrip(geoRing, minCP+s*stripW, minCP+(s+1)*stripW, aCon, refLat);
-      if (!subRing || subRing.length < 3) continue;
-      const localAsp = ((Math.atan2(st.sinS,st.cosS)*180/Math.PI)+360)%360;
-      const slopeAvg = Math.round(st.slopeSum/st.cnt);
-      // GIDES §2.2.1: H ≥ 5m required
-      const hAvg = isFinite(st.elevMax) ? Math.round(st.elevMax-st.elevMin)
-                                        : Math.round(cellM*(r1-r0)*Math.sin(slopeAvg*Math.PI/180));
-      if (hAvg < 5) continue;
-      const areaHa = parseFloat((st.cnt*pxArea).toFixed(1));
-      idx++;
-      zones.push({ type:'Feature',
-        properties:{ id:`SLP-R${String(idx).padStart(2,'0')}`, label:`Zona de Risco ${idx}`,
-          aspect_deg:Math.round(localAsp), slope_max_deg:Math.min(Math.round(slopeAvg*1.3),65),
-          slope_avg_deg:slopeAvg, h_max_m:Math.round(hAvg*1.4), h_avg_m:hAvg,
-          area_ha:areaHa, candidates_ac:Math.max(1,Math.round(areaHa/2)),
-          notes:`Detectado via DEM — θ méd. ${slopeAvg}°, H≈${hAvg}m${nStrips>1?` · faixa ${s+1}/${nStrips}`:''}` },
-        geometry:{ type:'Polygon', coordinates:[subRing] }});
-    }
+    const slopeAvg = Math.round(slopeSum/cnt);
+    const hAvg = isFinite(elevMax) ? Math.round(elevMax-elevMin)
+                                   : Math.round(cellM*(r1-r0)*Math.sin(slopeAvg*Math.PI/180));
+    // GIDES §2.2.1: H ≥ 5m required — discard zones that cannot meet this criterion
+    if (hAvg < 5) continue;
+    const areaHa = parseFloat((cnt*pxArea).toFixed(1));
+    idx++;
+    zones.push({ type:'Feature',
+      properties:{ id:`SLP-R${String(idx).padStart(2,'0')}`, label:`Zona de Risco ${idx}`,
+        aspect_deg:Math.round(meanAsp), slope_max_deg:Math.min(Math.round(slopeAvg*1.3),65),
+        slope_avg_deg:slopeAvg, h_max_m:Math.round(hAvg*1.4), h_avg_m:hAvg,
+        area_ha:areaHa, candidates_ac:Math.max(1,Math.round(areaHa/2)),
+        notes:`Detectado via DEM — θ méd. ${slopeAvg}°, H≈${hAvg}m` },
+      geometry:{ type:'Polygon', coordinates:[ring.map(p2g)] }});
   }
   return zones;
 }
