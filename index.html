@@ -6153,12 +6153,14 @@ function _sampleContourElev(lng, lat) {
   return bestElev;
 }
 
-function computeTransects(feature, N=5) {
+function computeTransects(feature) {
   const props=feature.properties, ring=feature.geometry.coordinates[0];
   const aAsp=props.aspect_deg, aCon=(aAsp+90)%360;
   const refLat=ring.reduce((s,c)=>s+c[1],0)/ring.length;
   const conProjs=ring.map(c=>geoProj(c[0],c[1],aCon,refLat));
   let minC=Infinity, maxC=-Infinity; for(const v of conProjs){if(v<minC)minC=v; if(v>maxC)maxC=v;}
+  // GIDES Passo 3: perpendicular lines at 50 m intervals
+  const N=Math.max(1,Math.round((maxC-minC)/50));
   const cLng=ring.reduce((s,c)=>s+c[0],0)/ring.length;
   const cLat=ring.reduce((s,c)=>s+c[1],0)/ring.length;
   const cProjC=geoProj(cLng,cLat,aCon,refLat);
@@ -6175,7 +6177,6 @@ function computeTransects(feature, N=5) {
       const eTop = _sampleContourElev(topPt[0], topPt[1]);
       const eBot = _sampleContourElev(botPt[0], botPt[1]);
       const hContour = (eTop != null && eBot != null) ? Math.round(Math.abs(eTop - eBot)) : 0;
-      // Fall back to h_avg_m scaling if contour lookup returns same elevation for both points
       H = hContour > 0 ? hContour : Math.round(props.h_avg_m * (0.85 + 0.3 * (i / (N + 1))));
     } else {
       H = Math.round(props.h_avg_m * (0.85 + 0.3 * (i / (N + 1))));
@@ -6191,28 +6192,23 @@ function computeAC(feature, transects) {
   const aAsp  = props.aspect_deg;
   const aUp   = (aAsp + 180) % 360;
 
-  const ring    = feature.geometry.coordinates[0];
-  const refLat  = ring.reduce((s,c)=>s+c[1],0) / ring.length;
-  const aspProjs = ring.map(c => geoProj(c[0],c[1],aAsp,refLat));
-  let _aspMin=Infinity, _aspMax=-Infinity; for(const v of aspProjs){if(v<_aspMin)_aspMin=v; if(v>_aspMax)_aspMax=v;}
-  const polyExtM = _aspMax - _aspMin;
-  const SCALE   = Math.max(1, polyExtM / 200);
-
+  // GIDES Passo 6: +10 m upslope from topo; +H (max 30 m) downslope from base
   const acTops = transects.map(t =>
-    geoMove(t.top[0], t.top[1], aUp, 10 * SCALE)
+    geoMove(t.top[0], t.top[1], aUp, 10)
   );
   const acBots = transects.map(t =>
-    geoMove(t.bot[0], t.bot[1], aAsp, Math.min(t.H, 30) * SCALE)
+    geoMove(t.bot[0], t.bot[1], aAsp, Math.min(t.H, 30))
   );
 
-  return { ring: [...acTops, ...[...acBots].reverse(), acTops[0]], acBots, SCALE };
+  return { ring: [...acTops, ...[...acBots].reverse(), acTops[0]], acBots };
 }
 
-function computeAD(feature, transects, acBots, SCALE) {
+function computeAD(feature, transects, acBots) {
   if (!transects || transects.length < 2 || !acBots) return null;
+  // GIDES Passo 7: +2H (max 50 m) downslope from base
   const aAsp = feature.properties.aspect_deg;
   const adBots = transects.map(t =>
-    geoMove(t.bot[0], t.bot[1], aAsp, Math.min(2 * t.H, 50) * SCALE)
+    geoMove(t.bot[0], t.bot[1], aAsp, Math.min(2 * t.H, 50))
   );
   return [...acBots, ...[...adBots].reverse(), acBots[0]];
 }
@@ -6358,7 +6354,7 @@ async function runSteps3to4RealDEM(st) {
     const lines=[], mkrs=[];
     transectData={};
     zones.forEach(f => {
-      const ts = computeTransects(f, 5);
+      const ts = computeTransects(f);
       transectData[f.properties.id] = ts;
       ts.forEach((t, ti) => {
         lines.push({top:t.top, bot:t.bot, id:f.properties.id, no:ti+1});
@@ -6441,7 +6437,7 @@ function runSteps3to4Legacy() {
   const lines=[], mkrs=[];
   transectData={}; _demContours=null;
   slopeData.features.forEach(f=>{
-    const ts=computeTransects(f,5);
+    const ts=computeTransects(f);
     transectData[f.properties.id]=ts;
     ts.forEach((t,ti)=>{
       lines.push({top:t.top, bot:t.bot, id:f.properties.id, no:ti+1});
@@ -9666,12 +9662,12 @@ function _computeAcadRings(stats) {
   );
   const ac = {}, ad = {};
   zones.forEach(f => {
-    const ts = computeTransects(f, 5);
+    const ts = computeTransects(f);
     if (!ts || ts.length < 2) return;
     const acResult = computeAC(f, ts);
     if (!acResult || !acResult.ring) return;
     ac[f.properties.id] = acResult.ring;
-    const adRing = computeAD(f, ts, acResult.acBots, acResult.SCALE);
+    const adRing = computeAD(f, ts, acResult.acBots);
     if (adRing) ad[f.properties.id] = adRing;
   });
   return { ac, ad, zoneCount: zones.length };
@@ -11611,7 +11607,7 @@ function _recomputeZoneACAD(id, feat) {
     acLayerMap[id] = lyr;
     if (st !== 'excluded') acGroupLayer.addLayer(lyr);
 
-    const adRing = computeAD(feat, ts, ac.acBots, ac.SCALE);
+    const adRing = computeAD(feat, ts, ac.acBots);
     if (adRing) {
       adPolyData[id] = adRing;
       if (adLayerMap[id]) adGroupLayer.removeLayer(adLayerMap[id]);
@@ -11686,7 +11682,7 @@ function runStep6() {
     if (!ac) return;
     acPolyData[p.id] = ac.ring;
     acFeats.push({ ring:ac.ring, id:p.id, label:p.label, dnLabel:Math.min(p.h_avg_m, 30) });
-    const adRing = computeAD(f, ts, ac.acBots, ac.SCALE);
+    const adRing = computeAD(f, ts, ac.acBots);
     if (adRing) {
       adPolyData[p.id] = adRing;
       adFeats.push({ ring:adRing, id:p.id, label:p.label, dnLabel:Math.min(2*p.h_avg_m, 50) });
