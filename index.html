@@ -261,6 +261,7 @@ html,body{height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,sans-seri
 .dem-info-btn{margin-left:auto;flex-shrink:0;background:none;border:none;color:#37474f;
   font-size:13px;cursor:pointer;padding:2px 5px;border-radius:3px;transition:color .15s,background .15s;line-height:1}
 .dem-info-btn:hover{color:#42a5f5;background:rgba(66,165,245,.1)}
+.munic821-tooltip{background:#0d1b2a;border:1px solid #263545;color:#cfd8dc;font-size:12px;padding:6px 9px;border-radius:5px;box-shadow:0 3px 12px rgba(0,0,0,.6)}
 #dem-info-popup{position:fixed;z-index:9999;background:#0d1b2a;
   border:1px solid rgba(21,101,192,.4);border-radius:7px;padding:10px 28px 10px 13px;
   font-size:12px;line-height:1.85;min-width:210px;max-width:250px;
@@ -886,6 +887,19 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
             </div>
             <div id="m821-hazards" style="display:flex;gap:3px;flex-wrap:wrap;margin-bottom:5px"></div>
             <div id="m821-details" style="font-size:11px;color:#90a4ae;line-height:1.8"></div>
+            <div id="m821-progress" style="display:none;margin-top:5px;padding:4px 6px;background:rgba(102,187,106,.08);border:1px solid rgba(102,187,106,.25);border-radius:4px;font-size:11px;color:#a5d6a7;line-height:1.6"></div>
+          </div>
+
+          <!-- Setor de Risco: Deslizamento -->
+          <div style="margin-top:5px;display:flex;gap:4px;align-items:center">
+            <button id="btn-haz-land" onclick="toggleHazardLayer('land')"
+              style="flex:1;padding:5px 8px;background:rgba(255,255,255,.03);border:1px solid rgba(239,83,80,.2);
+                     border-radius:4px;color:#ef9a9a;font-size:11px;cursor:pointer;text-align:left;min-width:0">
+              <i class="fa fa-mountain fa-xs"></i>&nbsp;Setor de Risco: Deslizamento
+              <span id="haz-badge-land" style="float:right;font-size:10px;color:#546e7a">OFF</span>
+            </button>
+            <button class="dem-info-btn" onclick="_showDeslizamentoInfo(this,event)" title="Sobre este dado"
+              style="color:#ef9a9a;flex-shrink:0"><i class="fa fa-info-circle"></i></button>
           </div>
 
           <!-- Área Urbana layer toggle -->
@@ -3654,6 +3668,7 @@ map.pm.setLang('pt_br');
 
 // ── Render AOI layer from GeoJSON ────────────────────────────────
 function renderAOI(data, pan=true) {
+  _activeIbgeCode = null;  // reset — IBGE-path callers re-set it after this returns
   if (aoiLayer) map.removeLayer(aoiLayer);
   aoiLayer = L.geoJSON(data, {
     style:{ color:'#1565c0', weight:2, fill:false,
@@ -3662,6 +3677,90 @@ function renderAOI(data, pan=true) {
   if (pan) map.fitBounds(aoiLayer.getBounds(), { padding:[20,20] });
   _showMapLeg('aoi', true);
   _updateStepper();
+}
+
+// ── 821 Progress Tracking (localStorage) ─────────────────────────────────────
+const _PROGRESS_KEY = 'sagrisco_progress';
+
+function _getProgress() {
+  try { return JSON.parse(localStorage.getItem(_PROGRESS_KEY) || '{}'); } catch(e) { return {}; }
+}
+
+function _recordProgress(ibgeCode, cartaType) {
+  if (!ibgeCode) return;
+  const code = String(ibgeCode).padStart(7,'0');
+  const prog = _getProgress();
+  if (!prog[code]) prog[code] = { tipos: [], ultimo: null };
+  const label = cartaType === 'indice' ? 'Índice' : cartaType === 'perigo' ? 'Perigo' : cartaType === 'risco' ? 'Risco' : cartaType;
+  if (!prog[code].tipos.includes(label)) prog[code].tipos.push(label);
+  prog[code].ultimo = new Date().toISOString().slice(0,10);
+  localStorage.setItem(_PROGRESS_KEY, JSON.stringify(prog));
+  _updateMunic821Info(ibgeCode);
+}
+
+let _munic821GeoJSON = null;
+
+// ── Hazard Thematic Layers ────────────────────────────────────────────────────
+const _HAZARD_CFG = {
+  land: { label:'Deslizamento', key:'land', color:'#EF5350', fillOp:0.55, bg:'rgba(239,83,80,.18)', border:'rgba(239,83,80,.6)' },
+};
+const _hazardLayers = { land:null };
+const _hazardActive = { land:false };
+
+async function _ensureMunic821GeoJSON() {
+  if (_munic821GeoJSON) return true;
+  try {
+    const r = await fetch('munic_821_polygons.geojson');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    _munic821GeoJSON = await r.json();
+    return true;
+  } catch(err) {
+    toast('warn', '<i class="fa fa-exclamation-triangle" style="color:#ffa726"></i>&nbsp;Erro ao carregar polígonos: ' + err.message);
+    return false;
+  }
+}
+
+async function toggleHazardLayer(type) {
+  _hazardActive[type] = !_hazardActive[type];
+  const cfg   = _HAZARD_CFG[type];
+  const badge = document.getElementById(`haz-badge-${type}`);
+  const btn   = document.getElementById(`btn-haz-${type}`);
+
+  if (_hazardActive[type]) {
+    if (badge) { badge.textContent = '…'; badge.style.color = cfg.color; }
+    if (btn)   { btn.style.background = cfg.bg; btn.style.borderColor = cfg.border; }
+
+    if (!await _ensureMunic821GeoJSON()) { _hazardActive[type] = false; return; }
+    if (_hazardLayers[type]) { try { map.removeLayer(_hazardLayers[type]); } catch(e){} }
+
+    const filtered = {
+      type: 'FeatureCollection',
+      features: _munic821GeoJSON.features.filter(f => f.properties[cfg.key])
+    };
+    _hazardLayers[type] = L.geoJSON(filtered, {
+      style: { color: cfg.color, weight: 1, opacity: 0.8, fillColor: cfg.color, fillOpacity: cfg.fillOp },
+      onEachFeature(feat, layer) {
+        const p = feat.properties;
+        const prog = _getProgress();
+        const entry = prog[p.code];
+        const progText = entry ? `<br><span style="color:#a5d6a7">✓ Cartas: ${entry.tipos.join(', ')} (${entry.ultimo})</span>` : '';
+        layer.bindTooltip(
+          `<b>${p.nm}, ${p.uf}</b><br>` +
+          `Susc.: ${p.susc ? '✓ Elaborada' : '⚠ Não elaborada'}&nbsp;|&nbsp;S2ID: ${p.s2id ? '✓' : '—'}` +
+          progText,
+          { sticky: true, className: 'munic821-tooltip' }
+        );
+        layer.on('click', () => loadMunicByIbge(parseInt(p.code), p.nm, p.uf));
+      }
+    });
+    _hazardLayers[type].addTo(map);
+    const n = filtered.features.length;
+    if (badge) { badge.textContent = `ON (${n})`; badge.style.color = cfg.color; }
+  } else {
+    if (badge) { badge.textContent = 'OFF'; badge.style.color = '#546e7a'; }
+    if (btn)   { btn.style.background = 'rgba(255,255,255,.03)'; btn.style.borderColor = 'rgba(255,255,255,.1)'; }
+    if (_hazardLayers[type]) { try { map.removeLayer(_hazardLayers[type]); } catch(e){} _hazardLayers[type] = null; }
+  }
 }
 
 // ── 821 Priority Municipality Info ───────────────────────────────────────────
@@ -3700,37 +3799,58 @@ function _updateMunic821Info(ibgeCode) {
     `&nbsp;&nbsp;<span style="color:#78909c">Pop.:</span> ${popStr}` +
     `&nbsp;&nbsp;<span style="color:#78909c">Área:</span> ${areaStr}`;
 
+  // Progress display
+  const progDiv = document.getElementById('m821-progress');
+  if (progDiv) {
+    const prog = _getProgress();
+    const entry = prog[code];
+    if (entry && entry.tipos.length) {
+      progDiv.innerHTML =
+        `<i class="fa fa-check-circle fa-xs" style="color:#66bb6a"></i>` +
+        `&nbsp;<b>Cartas geradas via SAGRISCO:</b> ${entry.tipos.join(', ')}` +
+        `<span style="color:#546e7a"> (${entry.ultimo})</span>`;
+      progDiv.style.display = 'block';
+    } else {
+      progDiv.style.display = 'none';
+    }
+  }
+
   panel.style.display = 'block';
 }
 
 // ── Área Urbana (IBGE Setores Censitários — perímetro urbano) ────────────────
-async function _loadAreaUrbana(code) {
+let _areaUrbana821GeoJSON = null;
+
+async function _loadAreaUrbana821All() {
   if (areaUrbanaLayer) {
     try { layerControl.removeLayer(areaUrbanaLayer); map.removeLayer(areaUrbanaLayer); } catch(e){}
     areaUrbanaLayer = null;
   }
-  if (!code) return;
   const badge = document.getElementById('au-badge');
+  const btn   = document.getElementById('btn-area-urbana');
   if (badge) { badge.textContent = '…'; badge.style.color = '#ffb300'; }
-  try {
-    const r = await fetch(`area_urbana/${code}.geojson`);
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const gj = await r.json();
-    areaUrbanaLayer = L.geoJSON(gj, {
-      style: { color:'#f57f17', weight:1, opacity:0.7, fillColor:'#ffca28', fillOpacity:0.18 },
-      interactive: false
-    });
-    areaUrbanaLayer.addTo(map);
-    layerControl.addOverlay(areaUrbanaLayer,
-      '<i class="fa fa-th fa-xs" style="color:#ffca28"></i>&nbsp;Área Urbana (IBGE)');
-    if (badge) { badge.textContent = 'ON'; badge.style.color = '#ffb300'; }
-  } catch(err) {
-    console.info('[AreaUrbana] Not in 821-city list:', code, err.message);
-    if (badge) { badge.textContent = 'N/D'; badge.style.color = '#546e7a'; }
-    const btn = document.getElementById('btn-area-urbana');
-    if (btn) { btn.style.background = 'rgba(255,179,0,.06)'; btn.style.borderColor = 'rgba(255,179,0,.2)'; }
-    _areaUrbanaOn = false;
+  if (!_areaUrbana821GeoJSON) {
+    try {
+      const r = await fetch('area_urbana_821.geojson');
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      _areaUrbana821GeoJSON = await r.json();
+    } catch(err) {
+      toast('warn', '<i class="fa fa-exclamation-triangle" style="color:#ffa726"></i>&nbsp;Erro ao carregar Área Urbana: ' + err.message);
+      if (badge) { badge.textContent = 'OFF'; badge.style.color = '#546e7a'; }
+      if (btn)   { btn.style.background = 'rgba(255,179,0,.06)'; btn.style.borderColor = 'rgba(255,179,0,.2)'; }
+      _areaUrbanaOn = false;
+      return;
+    }
   }
+  areaUrbanaLayer = L.geoJSON(_areaUrbana821GeoJSON, {
+    style: { color:'#f9a825', weight:1.5, opacity:0.9, fillColor:'#ffca28', fillOpacity:0.55 },
+    interactive: false
+  });
+  areaUrbanaLayer.addTo(map);
+  layerControl.addOverlay(areaUrbanaLayer,
+    '<i class="fa fa-th fa-xs" style="color:#ffca28"></i>&nbsp;Área Urbana (IBGE)');
+  const n = _areaUrbana821GeoJSON.features.length;
+  if (badge) { badge.textContent = `ON (${n})`; badge.style.color = '#ffb300'; }
 }
 
 function toggleAreaUrbana() {
@@ -3740,14 +3860,7 @@ function toggleAreaUrbana() {
   if (_areaUrbanaOn) {
     if (badge) { badge.textContent = '…'; badge.style.color = '#ffb300'; }
     if (btn)   { btn.style.background = 'rgba(255,179,0,.18)'; btn.style.borderColor = 'rgba(255,179,0,.6)'; }
-    if (_activeIbgeCode) {
-      _loadAreaUrbana(_activeIbgeCode);
-    } else {
-      if (badge) { badge.textContent = 'OFF'; badge.style.color = '#546e7a'; }
-      if (btn)   { btn.style.background = 'rgba(255,179,0,.06)'; btn.style.borderColor = 'rgba(255,179,0,.2)'; }
-      _areaUrbanaOn = false;
-      toast('info', '<i class="fa fa-info-circle" style="color:#78909c"></i>&nbsp;Defina o município (AOI) primeiro.');
-    }
+    _loadAreaUrbana821All();
   } else {
     if (badge) { badge.textContent = 'OFF'; badge.style.color = '#546e7a'; }
     if (btn)   { btn.style.background = 'rgba(255,179,0,.06)'; btn.style.borderColor = 'rgba(255,179,0,.2)'; }
@@ -3811,7 +3924,6 @@ async function loadMunicBoundary(munVal, pan=true) {
       `<i class="fa fa-map" style="color:#42a5f5"></i>&nbsp;Limite oficial carregado: <b>${meta.name}</b>`
       + ` — IBGE cód. ${meta.ibge} (Malhas API)`);
     _activeIbgeCode = String(meta.ibge).padStart(7,'0');
-    if (_areaUrbanaOn) _loadAreaUrbana(_activeIbgeCode);
     _updateMunic821Info(meta.ibge);
 
   } catch(err) {
@@ -3834,7 +3946,7 @@ async function loadMunicBoundary(munVal, pan=true) {
     toast('warn',
       `<i class="fa fa-exclamation-triangle" style="color:#ffa726"></i>&nbsp;IBGE API indisponível.`
       + ` Limite aproximado utilizado para <b>${meta.name}</b>.`);
-    if (meta.ibge) { _activeIbgeCode = String(meta.ibge).padStart(7,'0'); if (_areaUrbanaOn) _loadAreaUrbana(_activeIbgeCode); _updateMunic821Info(meta.ibge); }
+    if (meta.ibge) { _activeIbgeCode = String(meta.ibge).padStart(7,'0'); _updateMunic821Info(meta.ibge); }
   }
 }
 
@@ -3842,6 +3954,7 @@ async function loadMunicBoundary(munVal, pan=true) {
 map.on('pm:create', e => {
   if (!isDrawing) return;
   isDrawing = false;
+  _activeIbgeCode = null;  // reset — new drawn AOI has no municipality context yet
   drawnAoi = e.layer;
   drawnAoi.setStyle({ color:'#1565c0', weight:2, fill:false, dashArray:'6 4', opacity:.8 });
   document.getElementById('draw-banner').classList.remove('show');
@@ -5682,6 +5795,7 @@ async function onAoiImport(e) {
         _cmpAoiMarkDefined(file.name.replace(/\.[^.]+$/, ''));
       const crsNote = epsg ? ` (EPSG:${epsg}→WGS84)` : '';
       toast('ok', `<i class="fa fa-draw-polygon" style="color:#42a5f5"></i>&nbsp;AOI importada: <b>${file.name}</b>${crsNote}`);
+      _activeIbgeCode = null;
     }
   } catch(err) {
     toast('warn', `<i class="fa fa-exclamation-triangle" style="color:#ffa726"></i>&nbsp;Erro ao importar: ${err.message}`);
@@ -5778,7 +5892,6 @@ async function loadMunicByIbge(ibgeCode, municName, uf) {
     checkReady();
     toast('ok', `<i class="fa fa-map" style="color:#42a5f5"></i>&nbsp;AOI: <b>${_dynMunicName}</b>`);
     _activeIbgeCode = String(ibgeCode).padStart(7,'0');
-    if (_areaUrbanaOn) _loadAreaUrbana(_activeIbgeCode);
     _updateMunic821Info(ibgeCode);
   } catch(err) {
     document.getElementById('aoi-status').textContent = 'Erro IBGE';
@@ -6793,6 +6906,7 @@ async function savePDF() {
     const now = new Date();
     const ym = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
     pdf.save(`carta_${typeName}_${municVal}_${ym}.pdf`);
+    _recordProgress(_activeIbgeCode, typeName);
   } catch(e) {
     console.error('savePDF:', e);
     toast('warn', `<i class="fa fa-exclamation-triangle" style="color:#ffa726"></i>&nbsp;Erro ao gerar PDF: ${e.message || e}. Tente "Imprimir" → Salvar como PDF.`);
@@ -12401,6 +12515,38 @@ function _showAreaUrbanaInfo(btn, e) {
   popup.style.display = 'block';
   const rect = btn.getBoundingClientRect();
   const popW = 260, popH = popup.offsetHeight || 180;
+  let left = rect.right + 6;
+  let top  = rect.top;
+  if (left + popW > window.innerWidth)  left = rect.left - popW - 4;
+  if (top  + popH > window.innerHeight) top  = window.innerHeight - popH - 8;
+  popup.style.left = left + 'px';
+  popup.style.top  = top  + 'px';
+}
+
+function _showDeslizamentoInfo(btn, e) {
+  e.stopPropagation();
+  const popup = document.getElementById('dem-info-popup');
+  popup.innerHTML = _INFO_CLOSE_BTN + `
+    <b style="color:#ef9a9a"><i class="fa fa-mountain fa-xs"></i>&nbsp;Setor de Risco: Deslizamento</b>
+    <span style="color:#b0bec5;line-height:1.75;display:block;margin-top:6px">
+      Os <b style="color:#e0e0e0">821 municípios prioritários</b> foram selecionados com base
+      no histórico de desastres registrado pelo IPT e CENAD:<br>
+      <span style="color:#90a4ae;font-size:10px;display:block;margin:3px 0 3px 8px">
+        • Deslizamento: 257 mun. (≥ 2 óbitos ou ≥ 2 eventos)<br>
+        • Enxurrada: 377 mun. &nbsp;• Inundação: 377 mun. (190 sobrepostos)
+      </span>
+      Deste universo, <b style="color:#ffb74d">133 municípios</b> foram identificados
+      com prioridade para <em>deslizamento</em>.<br><br>
+      A extração dos <b style="color:#e0e0e0">setores de risco</b> é responsabilidade
+      da <b style="color:#e0e0e0">CPRM</b>, com base na
+      <em>Lei Federal n.º 12.608/2012</em> (Política Nacional de Proteção e Defesa Civil).<br><br>
+      <span style="color:#78909c;font-size:10px">
+        Fontes: IPT · CENAD/MI · CPRM · Ministério das Cidades
+      </span>
+    </span>`;
+  popup.style.display = 'block';
+  const rect = btn.getBoundingClientRect();
+  const popW = 270, popH = popup.offsetHeight || 200;
   let left = rect.right + 6;
   let top  = rect.top;
   if (left + popW > window.innerWidth)  left = rect.left - popW - 4;
