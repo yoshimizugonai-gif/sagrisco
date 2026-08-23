@@ -1880,6 +1880,13 @@ let _lastRpStep      = 1;
 let _deletedZoneIds  = new Set();
 let transectData     = {};
 let _demContours     = null;   // contour features for H sampling (real DEM only)
+let _aspGrid        = null;   // Float32Array aspect raster — for per-transect local aspect
+let _aspGridW       = 0;      // raster dimensions and bounds
+let _aspGridH       = 0;
+let _aspGridNwLat   = 0;
+let _aspGridNwLng   = 0;
+let _aspGridSeLat   = 0;
+let _aspGridSeLng   = 0;
 let acPolyData       = {};
 let adPolyData       = {};
 let acLayerMap       = {};
@@ -3445,6 +3452,7 @@ function _clearFluxoResults() {
   if (contourMajorLayer) { try { layerControl.removeLayer(contourMajorLayer); map.removeLayer(contourMajorLayer); } catch(e){} contourMajorLayer = null; }
   if (contourMinorLayer) { try { layerControl.removeLayer(contourMinorLayer); map.removeLayer(contourMinorLayer); } catch(e){} contourMinorLayer = null; }
   const _lci1 = document.getElementById('map-leg-contour-info'); if (_lci1) _lci1.style.display = 'none';
+  _aspGrid = null;
   if (acGroupLayer)  { try { layerControl.removeLayer(acGroupLayer);  map.removeLayer(acGroupLayer);  } catch(e){} acGroupLayer  = null; }
   if (adGroupLayer)  { try { layerControl.removeLayer(adGroupLayer);  map.removeLayer(adGroupLayer);  } catch(e){} adGroupLayer  = null; }
   if (selectedZoneHighlight) { try { map.removeLayer(selectedZoneHighlight); } catch(e){} selectedZoneHighlight = null; }
@@ -6064,6 +6072,10 @@ function getSteepZonePolygons(slopeArr, elevGrid, totW, totH, nwLat, nwLng, seLa
   const lpp = (seLng - nwLng) / totW, lap = (nwLat - seLat) / totH;
   const p2g = ([col, row]) => [nwLng + col * lpp, nwLat - row * lap];
   const aspGrid = computeAspect(elevGrid, totH, totW);
+  // Store for per-transect local aspect sampling in computeTransects
+  _aspGrid = aspGrid; _aspGridW = totW; _aspGridH = totH;
+  _aspGridNwLat = nwLat; _aspGridNwLng = nwLng;
+  _aspGridSeLat = seLat; _aspGridSeLng = seLng;
   const pxAreaM2 = cellM * cellM;
   const pxArea   = pxAreaM2 / 10000;
   const zones = [];
@@ -6113,6 +6125,24 @@ function getSteepZonePolygons(slopeArr, elevGrid, totW, totH, nwLat, nwLng, seLa
 //  GEOMETRY UTILITIES — Etapa 2
 // ================================================================
 const _LAT_M = 111132;
+
+// Circular difference in [-180, 180]
+function _circDiff(a, b) { return ((a - b + 540) % 360) - 180; }
+
+// Bidirectional pass: clamp aspect change between adjacent transects to maxDelta degrees.
+// Prevents self-intersecting AC/AD polygons when local aspect varies sharply.
+function _smoothAspects(angles, maxDelta) {
+  const r = [...angles];
+  for (let i = 1; i < r.length; i++) {
+    const d = _circDiff(r[i], r[i-1]);
+    if (Math.abs(d) > maxDelta) r[i] = (r[i-1] + Math.sign(d) * maxDelta + 360) % 360;
+  }
+  for (let i = r.length - 2; i >= 0; i--) {
+    const d = _circDiff(r[i], r[i+1]);
+    if (Math.abs(d) > maxDelta) r[i] = (r[i+1] + Math.sign(d) * maxDelta + 360) % 360;
+  }
+  return r;
+}
 function _lngMat(lat) { return _LAT_M * Math.cos(lat * Math.PI / 180); }
 
 function geoProj(lng, lat, bearDeg, refLat) {
@@ -6166,7 +6196,7 @@ function _sampleContourElev(lng, lat) {
 
 function computeTransects(feature) {
   const props=feature.properties, ring=feature.geometry.coordinates[0];
-  const aAsp=props.aspect_deg, aCon=(aAsp+90)%360;
+  const aAspGlobal=props.aspect_deg, aCon=(aAspGlobal+90)%360;
   const refLat=ring.reduce((s,c)=>s+c[1],0)/ring.length;
   const conProjs=ring.map(c=>geoProj(c[0],c[1],aCon,refLat));
   let minC=Infinity, maxC=-Infinity; for(const v of conProjs){if(v<minC)minC=v; if(v>maxC)maxC=v;}
@@ -6175,51 +6205,67 @@ function computeTransects(feature) {
   const cLng=ring.reduce((s,c)=>s+c[0],0)/ring.length;
   const cLat=ring.reduce((s,c)=>s+c[1],0)/ring.length;
   const cProjC=geoProj(cLng,cLat,aCon,refLat);
-  const transects=[];
+
+  // Pre-compute transect positions and sample local aspect from aspect raster
+  const lpp=_aspGrid&&_aspGridW>0 ? (_aspGridSeLng-_aspGridNwLng)/_aspGridW : 0;
+  const lap=_aspGrid&&_aspGridH>0 ? (_aspGridNwLat-_aspGridSeLat)/_aspGridH : 0;
+  const tPts=[], rawAsps=[];
   for(let i=1;i<=N;i++){
     const cPos=minC+(maxC-minC)*i/(N+1);
     const pt=geoMove(cLng,cLat,aCon,cPos-cProjC);
-    const hits=lineRingX(pt[0],pt[1],aAsp,ring);
-    if(hits.length<2) continue;
-    hits.sort((a,b)=>geoProj(a[0],a[1],aAsp,refLat)-geoProj(b[0],b[1],aAsp,refLat));
-    const topPt = hits[0], botPt = hits[hits.length-1];
-    let H;
-    if (_demContours) {
-      const eTop = _sampleContourElev(topPt[0], topPt[1]);
-      const eBot = _sampleContourElev(botPt[0], botPt[1]);
-      const hContour = (eTop != null && eBot != null) ? Math.round(Math.abs(eTop - eBot)) : 0;
-      H = hContour > 0 ? hContour : Math.round(props.h_avg_m * (0.85 + 0.3 * (i / (N + 1))));
-    } else {
-      H = Math.round(props.h_avg_m * (0.85 + 0.3 * (i / (N + 1))));
+    tPts.push(pt);
+    let asp=aAspGlobal;
+    if(_aspGrid&&lpp>0&&lap>0){
+      const col=Math.round((pt[0]-_aspGridNwLng)/lpp);
+      const row=Math.round((_aspGridNwLat-pt[1])/lap);
+      if(col>=0&&col<_aspGridW&&row>=0&&row<_aspGridH){
+        const v=_aspGrid[row*_aspGridW+col];
+        if(v>=0) asp=v;   // v<0 means flat/NoData → keep global aspect
+      }
     }
-    transects.push({top:topPt, bot:botPt, H});
+    rawAsps.push(asp);
+  }
+  // Smooth: clamp aspect change to ≤30° per step to prevent polygon self-intersection
+  const asps=_smoothAspects(rawAsps,30);
+
+  const transects=[];
+  for(let i=0;i<tPts.length;i++){
+    const pt=tPts[i], asp=asps[i];
+    const hits=lineRingX(pt[0],pt[1],asp,ring);
+    if(hits.length<2) continue;
+    hits.sort((a,b)=>geoProj(a[0],a[1],asp,refLat)-geoProj(b[0],b[1],asp,refLat));
+    const topPt=hits[0], botPt=hits[hits.length-1];
+    let H;
+    if(_demContours){
+      const eTop=_sampleContourElev(topPt[0],topPt[1]);
+      const eBot=_sampleContourElev(botPt[0],botPt[1]);
+      const hContour=(eTop!=null&&eBot!=null)?Math.round(Math.abs(eTop-eBot)):0;
+      H=hContour>0?hContour:Math.round(props.h_avg_m*(0.85+0.3*((i+1)/(N+1))));
+    } else {
+      H=Math.round(props.h_avg_m*(0.85+0.3*((i+1)/(N+1))));
+    }
+    transects.push({top:topPt, bot:botPt, H, asp});
   }
   return transects;
 }
 
 function computeAC(feature, transects) {
   if (!transects || transects.length < 2) return null;
-  const props = feature.properties;
-  const aAsp  = props.aspect_deg;
-  const aUp   = (aAsp + 180) % 360;
-
-  // GIDES Passo 6: +10 m upslope from topo; +H (max 30 m) downslope from base
+  // GIDES Passo 6: +10 m upslope; +H (max 30 m) downslope — per-transect local aspect
   const acTops = transects.map(t =>
-    geoMove(t.top[0], t.top[1], aUp, 10)
+    geoMove(t.top[0], t.top[1], (t.asp + 180) % 360, 10)
   );
   const acBots = transects.map(t =>
-    geoMove(t.bot[0], t.bot[1], aAsp, Math.min(t.H, 30))
+    geoMove(t.bot[0], t.bot[1], t.asp, Math.min(t.H, 30))
   );
-
   return { ring: [...acTops, ...[...acBots].reverse(), acTops[0]], acBots };
 }
 
 function computeAD(feature, transects, acBots) {
   if (!transects || transects.length < 2 || !acBots) return null;
-  // GIDES Passo 7: +2H (max 50 m) downslope from base
-  const aAsp = feature.properties.aspect_deg;
+  // GIDES Passo 7: +2H (max 50 m) downslope — per-transect local aspect
   const adBots = transects.map(t =>
-    geoMove(t.bot[0], t.bot[1], aAsp, Math.min(2 * t.H, 50))
+    geoMove(t.bot[0], t.bot[1], t.asp, Math.min(2 * t.H, 50))
   );
   return [...acBots, ...[...adBots].reverse(), acBots[0]];
 }
@@ -6310,6 +6356,7 @@ async function runSteps3to4RealDEM(st) {
     if (contourMajorLayer) { layerControl.removeLayer(contourMajorLayer); map.removeLayer(contourMajorLayer); contourMajorLayer=null; }
     if (contourMinorLayer) { layerControl.removeLayer(contourMinorLayer); map.removeLayer(contourMinorLayer); contourMinorLayer=null; }
     const _lci2 = document.getElementById('map-leg-contour-info'); if (_lci2) _lci2.style.display = 'none';
+    _aspGrid = null;
     if (acGroupLayer)  { layerControl.removeLayer(acGroupLayer);  map.removeLayer(acGroupLayer);  acGroupLayer=null; }
     if (adGroupLayer)  { layerControl.removeLayer(adGroupLayer);  map.removeLayer(adGroupLayer);  adGroupLayer=null; }
     acLayerMap={}; adLayerMap={}; acPolyData={}; adPolyData={}; zoneStatus={}; zoneComments={}; hazardIndicia={}; hazardLevel={}; vulnerabilityLevel={}; riskLevel={};
@@ -12328,6 +12375,7 @@ function onMunicChange() {
   if (contourMajorLayer) { layerControl.removeLayer(contourMajorLayer); map.removeLayer(contourMajorLayer); contourMajorLayer=null; }
   if (contourMinorLayer) { layerControl.removeLayer(contourMinorLayer); map.removeLayer(contourMinorLayer); contourMinorLayer=null; }
   const _lci3 = document.getElementById('map-leg-contour-info'); if (_lci3) _lci3.style.display = 'none';
+  _aspGrid = null;
   if (acGroupLayer)  { layerControl.removeLayer(acGroupLayer);  map.removeLayer(acGroupLayer);  acGroupLayer=null; }
   if (adGroupLayer)  { layerControl.removeLayer(adGroupLayer);  map.removeLayer(adGroupLayer);  adGroupLayer=null; }
   if (buildingLayer) { layerControl.removeLayer(buildingLayer); map.removeLayer(buildingLayer); buildingLayer=null; }
