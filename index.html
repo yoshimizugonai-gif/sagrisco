@@ -1874,6 +1874,8 @@ let acLayer          = null;
 let adLayer          = null;
 let contourMajorLayer = null;   // 計曲線 (index contours)
 let contourMinorLayer = null;   // 主曲線 (intermediate contours)
+let contourLabelFullLayer = null; // ズーム高(≥14): 全ラベル
+let contourLabelThinLayer = null; // ズーム中(12-13): 間引きラベル
 let step34Done       = false;
 let step6Done        = false;
 let _lastRpStep      = 1;
@@ -3307,6 +3309,7 @@ async function runRealDEMAnalysis(setStep, colorScheme = null) {
 //  MAP SETUP
 // ================================================================
 const map = L.map('map', { center:[-15.0,-52.0], zoom:5, maxZoom:21, attributionControl:false, zoomControl:false });
+map.on('zoomend', () => _updateContourLabels());
 L.control.attribution({ prefix: '<a href="https://leafletjs.com" title="A JavaScript library for interactive maps">Leaflet</a>' }).addTo(map);
 map.createPane('transectHitPane');
 map.getPane('transectHitPane').style.zIndex = 500;
@@ -3444,6 +3447,8 @@ function _clearFluxoResults() {
   if (topBotLayer)   { try { layerControl.removeLayer(topBotLayer);   map.removeLayer(topBotLayer);   } catch(e){} topBotLayer   = null; }
   if (contourMajorLayer) { try { layerControl.removeLayer(contourMajorLayer); map.removeLayer(contourMajorLayer); } catch(e){} contourMajorLayer = null; }
   if (contourMinorLayer) { try { layerControl.removeLayer(contourMinorLayer); map.removeLayer(contourMinorLayer); } catch(e){} contourMinorLayer = null; }
+  if (contourLabelFullLayer) { try { map.removeLayer(contourLabelFullLayer); } catch(e){} contourLabelFullLayer = null; }
+  if (contourLabelThinLayer) { try { map.removeLayer(contourLabelThinLayer); } catch(e){} contourLabelThinLayer = null; }
   const _lci1 = document.getElementById('map-leg-contour-info'); if (_lci1) _lci1.style.display = 'none';
   if (acGroupLayer)  { try { layerControl.removeLayer(acGroupLayer);  map.removeLayer(acGroupLayer);  } catch(e){} acGroupLayer  = null; }
   if (adGroupLayer)  { try { layerControl.removeLayer(adGroupLayer);  map.removeLayer(adGroupLayer);  } catch(e){} adGroupLayer  = null; }
@@ -6017,6 +6022,21 @@ function computeAspect(grid, nR, nC) {
 
 let _contourMinorInt = 5;
 let _contourMajorInt = 20;
+function _updateContourLabels() {
+  if (!contourLabelFullLayer && !contourLabelThinLayer) return;
+  const z = map.getZoom();
+  if (z >= 14) {
+    if (contourLabelThinLayer && map.hasLayer(contourLabelThinLayer)) map.removeLayer(contourLabelThinLayer);
+    if (contourLabelFullLayer && !map.hasLayer(contourLabelFullLayer)) contourLabelFullLayer.addTo(map);
+  } else if (z >= 12) {
+    if (contourLabelFullLayer && map.hasLayer(contourLabelFullLayer)) map.removeLayer(contourLabelFullLayer);
+    if (contourLabelThinLayer && !map.hasLayer(contourLabelThinLayer)) contourLabelThinLayer.addTo(map);
+  } else {
+    if (contourLabelFullLayer && map.hasLayer(contourLabelFullLayer)) map.removeLayer(contourLabelFullLayer);
+    if (contourLabelThinLayer && map.hasLayer(contourLabelThinLayer)) map.removeLayer(contourLabelThinLayer);
+  }
+}
+
 function genContourLinesGeoJSON(elevGrid, slopeArr, totW, totH, nwLat, nwLng, seLat, seLng, cellM) {
   if (typeof d3 === 'undefined' || !d3.contours) return null;
   let mn = Infinity, mx = -Infinity;
@@ -6309,6 +6329,8 @@ async function runSteps3to4RealDEM(st) {
     if (topBotLayer)   { layerControl.removeLayer(topBotLayer);   map.removeLayer(topBotLayer);   topBotLayer=null; }
     if (contourMajorLayer) { layerControl.removeLayer(contourMajorLayer); map.removeLayer(contourMajorLayer); contourMajorLayer=null; }
     if (contourMinorLayer) { layerControl.removeLayer(contourMinorLayer); map.removeLayer(contourMinorLayer); contourMinorLayer=null; }
+    if (contourLabelFullLayer) { try { map.removeLayer(contourLabelFullLayer); } catch(e){} contourLabelFullLayer=null; }
+    if (contourLabelThinLayer) { try { map.removeLayer(contourLabelThinLayer); } catch(e){} contourLabelThinLayer=null; }
     const _lci2 = document.getElementById('map-leg-contour-info'); if (_lci2) _lci2.style.display = 'none';
     if (acGroupLayer)  { layerControl.removeLayer(acGroupLayer);  map.removeLayer(acGroupLayer);  acGroupLayer=null; }
     if (adGroupLayer)  { layerControl.removeLayer(adGroupLayer);  map.removeLayer(adGroupLayer);  adGroupLayer=null; }
@@ -6335,21 +6357,27 @@ async function runSteps3to4RealDEM(st) {
         filter: f => f.properties.major,
         style: () => ({ color:'#976f0a', weight:1.3, opacity:0.6 })
       });
-      const lbls = [];
+      const lblsFull = [], lblsThin = [];
       cGJ.features.forEach(f => {
         if (!f.properties.major) return;
         const coords = f.geometry.coordinates;
         if (!coords.length) return;
         const mid = coords[Math.floor(coords.length / 2)];
-        lbls.push(L.marker([mid[1], mid[0]], {
-          icon: L.divIcon({ className:'contour-label', html:`${Math.round(f.properties.elevation)}`, iconSize:null }),
-          interactive: false, keyboard: false
-        }));
+        const mkOpts = { interactive: false, keyboard: false };
+        const mkIcon = elev => L.divIcon({ className:'contour-label', html:`${Math.round(elev)}`, iconSize:null });
+        lblsFull.push(L.marker([mid[1], mid[0]], { ...mkOpts, icon: mkIcon(f.properties.elevation) }));
+        if (coords.length >= 20)
+          lblsThin.push(L.marker([mid[1], mid[0]], { ...mkOpts, icon: mkIcon(f.properties.elevation) }));
       });
-      contourMajorLayer = L.layerGroup([casingLyr, majorLinesLyr, L.layerGroup(lbls)]).addTo(map);
+      if (contourLabelFullLayer) { try { map.removeLayer(contourLabelFullLayer); } catch(e){} }
+      if (contourLabelThinLayer) { try { map.removeLayer(contourLabelThinLayer); } catch(e){} }
+      contourLabelFullLayer = L.layerGroup(lblsFull);
+      contourLabelThinLayer = L.layerGroup(lblsThin);
+      contourMajorLayer = L.layerGroup([casingLyr, majorLinesLyr]).addTo(map);
       layerControl.addOverlay(contourMajorLayer,
         `<i class="fa fa-minus fa-xs" style="color:#976f0a"></i>&nbsp;Curvas Mestras (${_contourMajorInt} m)` +
         `<div style="font-size:10px;color:#546e7a;padding-left:14px;line-height:1.4">${_demLbl}</div>`);
+      _updateContourLabels(); // ズームレベルに応じたラベルを表示
 
       // 主曲線 (curvas intermediárias): thin lines only
       const minorLinesLyr = L.geoJSON(cGJ, {
@@ -10286,6 +10314,7 @@ function handleZoneButton(id) {
     updateZoneButtonState(id, 'viewing');
     const block = document.getElementById(`exclblock-${id}`);
     if (block) { block.classList.add('zone-current-review'); block.scrollIntoView({behavior:'smooth',block:'nearest'}); }
+    if (selectedZoneId === id) clearZoneHighlight(); // ensure re-zoom if already selected
     zoomSector(id);
   }
 }
@@ -10702,7 +10731,7 @@ function enterPolyEditMode(id, type) {
   layer.on('pm:edit', _onPolyPmEdit);
 
   _showPolyEditToolbar(id, type);
-  map.fitBounds(layer.getBounds(), { padding: [50, 50] });
+  map.fitBounds(layer.getBounds(), { padding: [50, 50], maxZoom: 17 });
 }
 
 function _onPolyPmEdit() {
@@ -12126,12 +12155,13 @@ function zoomSector(id) {
   if (selectedZoneId === id) { clearZoneHighlight(); return; }
   _highlightZone(id);
   // Try slopeLayer first (simulated GeoJSON)
+  const _zoomOpts = { padding:[40,40], maxZoom:17 };
   if (slopeLayer) {
     let found = false;
     slopeLayer.eachLayer(lyr => {
       if (lyr.feature.properties.id === id) {
         found = true;
-        map.fitBounds(lyr.getBounds(), { padding:[40,40] });
+        map.fitBounds(lyr.getBounds(), _zoomOpts);
       }
     });
     if (found) return;
@@ -12146,7 +12176,7 @@ function zoomSector(id) {
   map.fitBounds(
     L.latLngBounds([Math.min(...lats), Math.min(...lngs)],
                    [Math.max(...lats), Math.max(...lngs)]),
-    { padding:[40,40] }
+    _zoomOpts
   );
 }
 
@@ -12327,6 +12357,8 @@ function onMunicChange() {
   if (topBotLayer)   { layerControl.removeLayer(topBotLayer);   map.removeLayer(topBotLayer);   topBotLayer=null; }
   if (contourMajorLayer) { layerControl.removeLayer(contourMajorLayer); map.removeLayer(contourMajorLayer); contourMajorLayer=null; }
   if (contourMinorLayer) { layerControl.removeLayer(contourMinorLayer); map.removeLayer(contourMinorLayer); contourMinorLayer=null; }
+  if (contourLabelFullLayer) { try { map.removeLayer(contourLabelFullLayer); } catch(e){} contourLabelFullLayer=null; }
+  if (contourLabelThinLayer) { try { map.removeLayer(contourLabelThinLayer); } catch(e){} contourLabelThinLayer=null; }
   const _lci3 = document.getElementById('map-leg-contour-info'); if (_lci3) _lci3.style.display = 'none';
   if (acGroupLayer)  { layerControl.removeLayer(acGroupLayer);  map.removeLayer(acGroupLayer);  acGroupLayer=null; }
   if (adGroupLayer)  { layerControl.removeLayer(adGroupLayer);  map.removeLayer(adGroupLayer);  adGroupLayer=null; }
