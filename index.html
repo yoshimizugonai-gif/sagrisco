@@ -1303,7 +1303,7 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
             <div class="status-row"><div class="status-dot" id="dot-aoi"></div><span id="lbl-aoi" style="font-size:12px;color:#546e7a">AOI: Não definida</span></div>
           </div>
           <button class="btn-analyze" id="btn-analyze" disabled onclick="runAnalysis()">
-            <i class="fa fa-mountain fa-xs"></i>&nbsp;Identificar Encostas / Delimitar AC/AD
+            <i class="fa fa-mountain fa-xs"></i>&nbsp;Identificar Encostas
           </button>
         </div>
       </div>
@@ -1323,7 +1323,7 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
           Pontos topo (▲) e base (▼) marcados na encosta.
         </div>
         <div class="acc-body">
-          <button class="btn-analyze" id="btn-gen-transects" onclick="runSteps3to4()" disabled style="display:none">
+          <button class="btn-analyze" id="btn-gen-transects" onclick="runSteps3to4()" disabled>
             <i class="fa fa-vector-square fa-xs"></i>&nbsp;Delimitar AC/AD
           </button>
           <div id="transect-results" style="display:none;margin-top:10px"></div>
@@ -11894,9 +11894,6 @@ function runStep6() {
 async function runAnalysis() {
   if (!selectedDEM || !aoiDefined) return;
 
-  // 斜面分析済みの場合はStep 2（AC/AD生成）のみ再実行
-  if (analysisRun) { runSteps3to4(); return; }
-
   const isReal = REAL_DEM_SOURCES.has(selectedDEM);
   const meta   = DEM_META[selectedDEM];
 
@@ -11917,7 +11914,6 @@ async function runAnalysis() {
       showResults(hit.stats);
       toast('ok',
         `<i class="fa fa-bolt" style="color:#ffd54f"></i>&nbsp;<b>${meta.name}</b>: resultado em cache restaurado instantaneamente.`);
-      runSteps3to4();
       return;
     }
   }
@@ -11988,7 +11984,6 @@ async function runAnalysis() {
   analysisRun = true;
   _updateStepper();
   showResults(realStats);
-  runSteps3to4();
 }
 
 function showResults(realStats = null) {
