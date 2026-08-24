@@ -6025,7 +6025,7 @@ let _contourMinorInt = 5;
 let _contourMajorInt = 20;
 function _updateZoomVisibility() {
   const z = map.getZoom();
-  const show = z >= 15;
+  const show = z >= 16;
 
   // 上端・下端を結ぶ線（transectLayer）
   if (transectLayer) {
@@ -6043,12 +6043,12 @@ function _updateZoomVisibility() {
     if (!show &&  map.hasLayer(_mapSPMarkerLayer)) map.removeLayer(_mapSPMarkerLayer);
   }
 
-  // 等高線ラベル（zoom≥16: 全表示 / zoom=15: 間引き / zoom<15: 非表示）
+  // 等高線ラベル（zoom≥17: 全表示 / zoom=16: 間引き / zoom<16: 非表示）
   if (!contourLabelFullLayer && !contourLabelThinLayer) return;
-  if (z >= 16) {
+  if (z >= 17) {
     if (contourLabelThinLayer && map.hasLayer(contourLabelThinLayer)) map.removeLayer(contourLabelThinLayer);
     if (contourLabelFullLayer && !map.hasLayer(contourLabelFullLayer)) contourLabelFullLayer.addTo(map);
-  } else if (z >= 15) {
+  } else if (z >= 16) {
     if (contourLabelFullLayer && map.hasLayer(contourLabelFullLayer)) map.removeLayer(contourLabelFullLayer);
     if (contourLabelThinLayer && !map.hasLayer(contourLabelThinLayer)) contourLabelThinLayer.addTo(map);
   } else {
@@ -7493,7 +7493,7 @@ function _refreshMapSPLabels() {
     });
     L.marker([cLat, cLng], { icon, interactive: false, pane: 'spLabelPane' }).addTo(_mapSPMarkerLayer);
   });
-  if (map.getZoom() >= 15) _mapSPMarkerLayer.addTo(map);
+  if (map.getZoom() >= 16) _mapSPMarkerLayer.addTo(map);
 }
 
 // SVGオーバーレイにSP/SRラベルグループを追加（Carta PDF出力対応）
