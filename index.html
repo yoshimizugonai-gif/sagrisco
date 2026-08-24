@@ -4564,7 +4564,7 @@ async function _setMunicAsAoi() {
   // 行政界をレイヤコントロールに登録（斜面ラスタ上に常時表示）
   if (aoiLayer) {
     municBoundaryLayer = L.geoJSON(aoiLayer.toGeoJSON(), {
-      style: { color: '#1565c0', weight: 2.5, fill: false, opacity: 1 },
+      style: { color: '#e040fb', weight: 2.5, fill: false, opacity: 1, dashArray: '8 4' },
       pane: 'municBoundPane'
     }).addTo(map);
     layerControl.addOverlay(municBoundaryLayer,
