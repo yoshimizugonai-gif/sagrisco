@@ -6398,8 +6398,8 @@ async function runSteps3to4RealDEM(st) {
       const _areaKm2 = (_totW * cellM / 1000 * _totH * cellM / 1000).toFixed(0);
       toast('info',
         `<i class="fa fa-clock" style="color:#ffa726"></i>&nbsp;` +
-        `AOI 広域 (~${_areaKm2} km² / ${_totW}×${_totH} px) — ` +
-        `処理に時間がかかる場合があります。等高線間隔・測線数を自動調整します。`);
+        `AOI extenso (~${_areaKm2} km² / ${_totW}×${_totH} px) — ` +
+        `O processamento pode demorar. Intervalo de curvas e número de perfis serão ajustados automaticamente.`);
     }
     if (transectLayer) { layerControl.removeLayer(transectLayer); map.removeLayer(transectLayer); transectLayer=null; }
     if (topBotLayer)   { layerControl.removeLayer(topBotLayer);   map.removeLayer(topBotLayer);   topBotLayer=null; }
