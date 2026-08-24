@@ -1882,6 +1882,7 @@ let _lastRpStep      = 1;
 let _deletedZoneIds  = new Set();
 let transectData     = {};
 let _demContours     = null;   // contour features for H sampling (real DEM only)
+let _contourSpatialIdx = null; // 2D grid index for _sampleContourElev
 let acPolyData       = {};
 let adPolyData       = {};
 let acLayerMap       = {};
@@ -6044,7 +6045,9 @@ function genContourLinesGeoJSON(elevGrid, slopeArr, totW, totH, nwLat, nwLng, se
     if (elevGrid[i] > DEM_NODATA + 1) { mn = Math.min(mn, elevGrid[i]); mx = Math.max(mx, elevGrid[i]); }
   }
   if (!isFinite(mn)) return null;
-  const minorInt = 5, majorInt = 20;
+  const px = totW * totH;
+  const minorInt = px < 250000 ? 5 : px < 1000000 ? 10 : 25;
+  const majorInt = px < 250000 ? 20 : px < 1000000 ? 50 : 100;
   _contourMinorInt = minorInt;
   _contourMajorInt = majorInt;
   const thresholds = [];
@@ -6166,13 +6169,59 @@ function lineRingX(ptLng, ptLat, bearDeg, ring) {
   return hits;
 }
 
+// Build a 2D spatial grid index over _demContours for fast nearest-vertex lookup.
+function _buildContourIndex(features) {
+  if (!features || !features.length) { _contourSpatialIdx = null; return; }
+  let minLng=Infinity, maxLng=-Infinity, minLat=Infinity, maxLat=-Infinity;
+  for (const f of features) {
+    for (const [lng, lat] of f.geometry.coordinates) {
+      if (lng < minLng) minLng = lng; if (lng > maxLng) maxLng = lng;
+      if (lat < minLat) minLat = lat; if (lat > maxLat) maxLat = lat;
+    }
+  }
+  const COLS = 24, ROWS = 24;
+  const cellW = ((maxLng - minLng) / COLS) || 0.001;
+  const cellH = ((maxLat - minLat) / ROWS) || 0.001;
+  const grid = Array.from({ length: ROWS * COLS }, () => []);
+  features.forEach((f, fi) => {
+    const seen = new Set();
+    for (const [lng, lat] of f.geometry.coordinates) {
+      const ci = Math.min(COLS-1, Math.max(0, Math.floor((lng - minLng) / cellW)));
+      const ri = Math.min(ROWS-1, Math.max(0, Math.floor((lat - minLat) / cellH)));
+      const key = ri * COLS + ci;
+      if (!seen.has(key)) { seen.add(key); grid[key].push(fi); }
+    }
+  });
+  _contourSpatialIdx = { grid, cellW, cellH, minLng, minLat, COLS, ROWS };
+}
+
 // Find the elevation of the nearest contour vertex to a given [lng, lat] point.
 // Returns null when no contour data is available (simulation mode).
 function _sampleContourElev(lng, lat) {
   if (!_demContours || !_demContours.length) return null;
   const cosLat = Math.cos(lat * Math.PI / 180);
   let bestDist2 = Infinity, bestElev = null;
-  for (const f of _demContours) {
+  const idx = _contourSpatialIdx;
+  let candidates;
+  if (idx) {
+    const ci = Math.min(idx.COLS-1, Math.max(0, Math.floor((lng - idx.minLng) / idx.cellW)));
+    const ri = Math.min(idx.ROWS-1, Math.max(0, Math.floor((lat - idx.minLat) / idx.cellH)));
+    const checked = new Set();
+    candidates = [];
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) {
+        const r2 = ri + dr, c2 = ci + dc;
+        if (r2 < 0 || r2 >= idx.ROWS || c2 < 0 || c2 >= idx.COLS) continue;
+        for (const fi of idx.grid[r2 * idx.COLS + c2]) {
+          if (!checked.has(fi)) { checked.add(fi); candidates.push(_demContours[fi]); }
+        }
+      }
+    }
+    if (!candidates.length) candidates = _demContours; // 境界部フォールバック
+  } else {
+    candidates = _demContours;
+  }
+  for (const f of candidates) {
     const elev = f.properties.elevation;
     for (const [cLng, cLat] of f.geometry.coordinates) {
       const dx = (cLng - lng) * cosLat * 111132;
@@ -6190,8 +6239,8 @@ function computeTransects(feature) {
   const refLat=ring.reduce((s,c)=>s+c[1],0)/ring.length;
   const conProjs=ring.map(c=>geoProj(c[0],c[1],aCon,refLat));
   let minC=Infinity, maxC=-Infinity; for(const v of conProjs){if(v<minC)minC=v; if(v>maxC)maxC=v;}
-  // GIDES Passo 3: perpendicular lines at 50 m intervals
-  const N=Math.max(1,Math.round((maxC-minC)/50));
+  // GIDES Passo 3: perpendicular lines at 50 m intervals (cap at 100)
+  const N=Math.min(100, Math.max(1,Math.round((maxC-minC)/50)));
   const cLng=ring.reduce((s,c)=>s+c[0],0)/ring.length;
   const cLat=ring.reduce((s,c)=>s+c[1],0)/ring.length;
   const cProjC=geoProj(cLng,cLat,aCon,refLat);
@@ -6325,6 +6374,14 @@ async function runSteps3to4RealDEM(st) {
   try {
     const { _grid, _slope, _totW, _totH, _nwLat, _nwLng, _seLat, _seLng } = st;
     const cellM = st.cellM || 30;
+    const _totalPx = _totW * _totH;
+    if (_totalPx > 500000) {
+      const _areaKm2 = (_totW * cellM / 1000 * _totH * cellM / 1000).toFixed(0);
+      toast('info',
+        `<i class="fa fa-clock" style="color:#ffa726"></i>&nbsp;` +
+        `AOI 広域 (~${_areaKm2} km² / ${_totW}×${_totH} px) — ` +
+        `処理に時間がかかる場合があります。等高線間隔・測線数を自動調整します。`);
+    }
     if (transectLayer) { layerControl.removeLayer(transectLayer); map.removeLayer(transectLayer); transectLayer=null; }
     if (topBotLayer)   { layerControl.removeLayer(topBotLayer);   map.removeLayer(topBotLayer);   topBotLayer=null; }
     if (contourMajorLayer) { layerControl.removeLayer(contourMajorLayer); map.removeLayer(contourMajorLayer); contourMajorLayer=null; }
@@ -6341,6 +6398,7 @@ async function runSteps3to4RealDEM(st) {
 
     const cGJ = genContourLinesGeoJSON(_grid, _slope, _totW, _totH, _nwLat, _nwLng, _seLat, _seLng, cellM);
     _demContours = cGJ ? cGJ.features : null;
+    _buildContourIndex(_demContours);
 
     setStep(38, 'Renderizando curvas de nível no mapa...');
     await delay(20);
@@ -6497,10 +6555,15 @@ async function runSteps3to4RealDEM(st) {
 
 function runSteps3to4Legacy() {
   const slopeData = activeSectorSet || SLOPE_AW3D;
+  if (slopeData.features.length > 10) {
+    toast('info',
+      `<i class="fa fa-clock" style="color:#ffa726"></i>&nbsp;` +
+      `${slopeData.features.length} setores detectados — processamento pode demorar.`);
+  }
   if (transectLayer) { map.removeLayer(transectLayer); transectLayer=null; }
   if (topBotLayer)   { map.removeLayer(topBotLayer);   topBotLayer=null; }
   const lines=[], mkrs=[];
-  transectData={}; _demContours=null;
+  transectData={}; _demContours=null; _contourSpatialIdx=null;
   slopeData.features.forEach(f=>{
     const ts=computeTransects(f);
     transectData[f.properties.id]=ts;
@@ -12368,7 +12431,7 @@ function onMunicChange() {
   Object.keys(demCache).forEach(k => delete demCache[k]);
   analysisRun=false; step34Done=false; step6Done=false;
   _editUndoSnapshot = null;
-  transectData={}; _demContours=null; acPolyData={}; adPolyData={}; acLayerMap={}; adLayerMap={};
+  transectData={}; _demContours=null; _contourSpatialIdx=null; acPolyData={}; adPolyData={}; acLayerMap={}; adLayerMap={};
   transectLayerMap={}; topBotLayerMap={};
   activeSectorSet=null; rasterImgBounds=null; zoneStatus={}; zoneComments={}; hazardIndicia={}; hazardLevel={}; vulnerabilityLevel={}; riskLevel={}; reviewedZones.clear(); currentReviewId=null;
   // Reset local DEM buffers
