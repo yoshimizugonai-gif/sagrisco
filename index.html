@@ -6062,6 +6062,16 @@ function _updateZoomVisibility() {
     if (!show &&  map.hasLayer(_mapSPMarkerLayer)) map.removeLayer(_mapSPMarkerLayer);
   }
 
+  // 等高線ライン（zoom<16: 非表示）
+  if (contourMajorLayer) {
+    if (show  && !map.hasLayer(contourMajorLayer)) contourMajorLayer.addTo(map);
+    if (!show &&  map.hasLayer(contourMajorLayer)) map.removeLayer(contourMajorLayer);
+  }
+  if (contourMinorLayer) {
+    if (show  && !map.hasLayer(contourMinorLayer)) contourMinorLayer.addTo(map);
+    if (!show &&  map.hasLayer(contourMinorLayer)) map.removeLayer(contourMinorLayer);
+  }
+
   // 等高線ラベル（zoom≥17: 全表示 / zoom=16: 間引き / zoom<16: 非表示）
   if (!contourLabelFullLayer && !contourLabelThinLayer) return;
   if (z >= 17) {
@@ -6083,9 +6093,8 @@ function genContourLinesGeoJSON(elevGrid, slopeArr, totW, totH, nwLat, nwLng, se
     if (elevGrid[i] > DEM_NODATA + 1) { mn = Math.min(mn, elevGrid[i]); mx = Math.max(mx, elevGrid[i]); }
   }
   if (!isFinite(mn)) return null;
-  const px = totW * totH;
-  const minorInt = px < 250000 ? 5 : px < 1000000 ? 10 : 25;
-  const majorInt = px < 250000 ? 20 : px < 1000000 ? 50 : 100;
+  const minorInt = 2;   // GIDES §2.2.1: 主曲線2m
+  const majorInt = 10;  // GIDES §2.2.1: 計曲線10m
   _contourMinorInt = minorInt;
   _contourMajorInt = majorInt;
   const thresholds = [];
@@ -6469,21 +6478,21 @@ async function runSteps3to4RealDEM(st) {
       if (contourLabelThinLayer) { try { map.removeLayer(contourLabelThinLayer); } catch(e){} }
       contourLabelFullLayer = L.layerGroup(lblsFull);
       contourLabelThinLayer = L.layerGroup(lblsThin);
-      contourMajorLayer = L.layerGroup([casingLyr, majorLinesLyr]).addTo(map);
+      contourMajorLayer = L.layerGroup([casingLyr, majorLinesLyr]);
       layerControl.addOverlay(contourMajorLayer,
         `<i class="fa fa-minus fa-xs" style="color:#976f0a"></i>&nbsp;Curvas Mestras (${_contourMajorInt} m)` +
         `<div style="font-size:10px;color:#546e7a;padding-left:14px;line-height:1.4">${_demLbl}</div>`);
-      _updateZoomVisibility(); // ズームレベルに応じた表示制御
 
       // 主曲線 (curvas intermediárias): thin lines only
       const minorLinesLyr = L.geoJSON(cGJ, {
         filter: f => !f.properties.major,
         style: () => ({ color:'#976f0a', weight:0.7, opacity:0.5 })
       });
-      contourMinorLayer = L.layerGroup([minorLinesLyr]).addTo(map);
+      contourMinorLayer = L.layerGroup([minorLinesLyr]);
       layerControl.addOverlay(contourMinorLayer,
         `<i class="fa fa-minus fa-xs" style="color:#976f0a;opacity:.6"></i>&nbsp;Curvas Intermediárias (${_contourMinorInt} m)` +
         `<div style="font-size:10px;color:#546e7a;padding-left:14px;line-height:1.4">${_demLbl}</div>`);
+      _updateZoomVisibility(); // 計曲線・主曲線ともにズームレベルに応じて表示制御
 
       // 凡例に等高線情報を反映
       const _legSrc = document.getElementById('map-leg-contour-src');
