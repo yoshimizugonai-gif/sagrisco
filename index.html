@@ -6447,11 +6447,11 @@ async function runSteps3to4RealDEM(st) {
       // 計曲線 (curvas mestras): casing + thick line + elevation labels
       const casingLyr = L.geoJSON(cGJ, {
         filter: f => f.properties.major,
-        style: () => ({ color:'#ffffff', weight:2.2, opacity:0.18, lineCap:'round', lineJoin:'round' })
+        style: () => ({ color:'#ffffff', weight:3.5, opacity:0.75, lineCap:'round', lineJoin:'round' })
       });
       const majorLinesLyr = L.geoJSON(cGJ, {
         filter: f => f.properties.major,
-        style: () => ({ color:'#976f0a', weight:1.3, opacity:0.6 })
+        style: () => ({ color:'#976f0a', weight:1.5, opacity:0.9 })
       });
       const lblsFull = [], lblsThin = [];
       cGJ.features.forEach(f => {
@@ -6475,12 +6475,16 @@ async function runSteps3to4RealDEM(st) {
         `<div style="font-size:10px;color:#546e7a;padding-left:14px;line-height:1.4">${_demLbl}</div>`);
       _updateZoomVisibility(); // ズームレベルに応じた表示制御
 
-      // 主曲線 (curvas intermediárias): thin lines only
+      // 主曲線 (curvas intermediárias): casing + thin line
+      const minorCasingLyr = L.geoJSON(cGJ, {
+        filter: f => !f.properties.major,
+        style: () => ({ color:'#ffffff', weight:2.2, opacity:0.65, lineCap:'round', lineJoin:'round' })
+      });
       const minorLinesLyr = L.geoJSON(cGJ, {
         filter: f => !f.properties.major,
-        style: () => ({ color:'#976f0a', weight:0.7, opacity:0.5 })
+        style: () => ({ color:'#976f0a', weight:0.8, opacity:0.75 })
       });
-      contourMinorLayer = L.layerGroup([minorLinesLyr]).addTo(map);
+      contourMinorLayer = L.layerGroup([minorCasingLyr, minorLinesLyr]).addTo(map);
       layerControl.addOverlay(contourMinorLayer,
         `<i class="fa fa-minus fa-xs" style="color:#976f0a;opacity:.6"></i>&nbsp;Curvas Intermediárias (${_contourMinorInt} m)` +
         `<div style="font-size:10px;color:#546e7a;padding-left:14px;line-height:1.4">${_demLbl}</div>`);
