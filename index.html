@@ -3310,7 +3310,7 @@ async function runRealDEMAnalysis(setStep, colorScheme = null) {
 //  MAP SETUP
 // ================================================================
 const map = L.map('map', { center:[-15.0,-52.0], zoom:5, maxZoom:21, attributionControl:false, zoomControl:false });
-map.on('zoomend', () => _updateContourLabels());
+map.on('zoomend', () => _updateZoomVisibility());
 L.control.attribution({ prefix: '<a href="https://leafletjs.com" title="A JavaScript library for interactive maps">Leaflet</a>' }).addTo(map);
 map.createPane('transectHitPane');
 map.getPane('transectHitPane').style.zIndex = 500;
@@ -6023,13 +6023,32 @@ function computeAspect(grid, nR, nC) {
 
 let _contourMinorInt = 5;
 let _contourMajorInt = 20;
-function _updateContourLabels() {
-  if (!contourLabelFullLayer && !contourLabelThinLayer) return;
+function _updateZoomVisibility() {
   const z = map.getZoom();
-  if (z >= 14) {
+  const show = z >= 15;
+
+  // 上端・下端を結ぶ線（transectLayer）
+  if (transectLayer) {
+    if (show  && !map.hasLayer(transectLayer)) transectLayer.addTo(map);
+    if (!show &&  map.hasLayer(transectLayer)) map.removeLayer(transectLayer);
+  }
+  // 上端・下端ポイント（topBotLayer）
+  if (topBotLayer) {
+    if (show  && !map.hasLayer(topBotLayer)) topBotLayer.addTo(map);
+    if (!show &&  map.hasLayer(topBotLayer)) map.removeLayer(topBotLayer);
+  }
+  // SP_XX Setorラベル
+  if (_mapSPMarkerLayer) {
+    if (show  && !map.hasLayer(_mapSPMarkerLayer)) _mapSPMarkerLayer.addTo(map);
+    if (!show &&  map.hasLayer(_mapSPMarkerLayer)) map.removeLayer(_mapSPMarkerLayer);
+  }
+
+  // 等高線ラベル（zoom≥16: 全表示 / zoom=15: 間引き / zoom<15: 非表示）
+  if (!contourLabelFullLayer && !contourLabelThinLayer) return;
+  if (z >= 16) {
     if (contourLabelThinLayer && map.hasLayer(contourLabelThinLayer)) map.removeLayer(contourLabelThinLayer);
     if (contourLabelFullLayer && !map.hasLayer(contourLabelFullLayer)) contourLabelFullLayer.addTo(map);
-  } else if (z >= 12) {
+  } else if (z >= 15) {
     if (contourLabelFullLayer && map.hasLayer(contourLabelFullLayer)) map.removeLayer(contourLabelFullLayer);
     if (contourLabelThinLayer && !map.hasLayer(contourLabelThinLayer)) contourLabelThinLayer.addTo(map);
   } else {
@@ -6435,7 +6454,7 @@ async function runSteps3to4RealDEM(st) {
       layerControl.addOverlay(contourMajorLayer,
         `<i class="fa fa-minus fa-xs" style="color:#976f0a"></i>&nbsp;Curvas Mestras (${_contourMajorInt} m)` +
         `<div style="font-size:10px;color:#546e7a;padding-left:14px;line-height:1.4">${_demLbl}</div>`);
-      _updateContourLabels(); // ズームレベルに応じたラベルを表示
+      _updateZoomVisibility(); // ズームレベルに応じた表示制御
 
       // 主曲線 (curvas intermediárias): thin lines only
       const minorLinesLyr = L.geoJSON(cGJ, {
@@ -6515,10 +6534,11 @@ async function runSteps3to4RealDEM(st) {
       if (!topBotLayerMap[m.id]) topBotLayerMap[m.id] = L.layerGroup();
       topBotLayerMap[m.id].addLayer(cm);
     });
-    transectLayer = L.layerGroup(Object.values(transectLayerMap)).addTo(map);
-    topBotLayer   = L.layerGroup(Object.values(topBotLayerMap)).addTo(map);
+    transectLayer = L.layerGroup(Object.values(transectLayerMap));
+    topBotLayer   = L.layerGroup(Object.values(topBotLayerMap));
     layerControl.addOverlay(transectLayer, 'Perfis de Corte');
     layerControl.addOverlay(topBotLayer,   'Pontos Topo / Base');
+    _updateZoomVisibility();
 
     setStep(90, 'Atualizando painel de resultados...');
     await delay(15);
@@ -6605,10 +6625,11 @@ function runSteps3to4Legacy() {
     if(!topBotLayerMap[m.id]) topBotLayerMap[m.id]=L.layerGroup();
     topBotLayerMap[m.id].addLayer(cm);
   });
-  transectLayer=L.layerGroup(Object.values(transectLayerMap)).addTo(map);
-  topBotLayer=L.layerGroup(Object.values(topBotLayerMap)).addTo(map);
+  transectLayer=L.layerGroup(Object.values(transectLayerMap));
+  topBotLayer=L.layerGroup(Object.values(topBotLayerMap));
   layerControl.addOverlay(transectLayer, 'Perfis de Corte');
   layerControl.addOverlay(topBotLayer,   'Pontos Topo / Base');
+  _updateZoomVisibility();
   buildHTable(slopeData);
   const totalT=Object.values(transectData).reduce((s,ts)=>s+ts.length,0);
   document.getElementById('transect-results').style.display='block';
@@ -7472,7 +7493,7 @@ function _refreshMapSPLabels() {
     });
     L.marker([cLat, cLng], { icon, interactive: false, pane: 'spLabelPane' }).addTo(_mapSPMarkerLayer);
   });
-  _mapSPMarkerLayer.addTo(map);
+  if (map.getZoom() >= 15) _mapSPMarkerLayer.addTo(map);
 }
 
 // SVGオーバーレイにSP/SRラベルグループを追加（Carta PDF出力対応）
