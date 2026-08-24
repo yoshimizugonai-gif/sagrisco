@@ -1803,7 +1803,8 @@ let _ibgeMunicCache = {};     // {sigla: [{id, nome}]} cached per UF
 let _dynMunicCode   = null;   // IBGE code of dynamically selected municipality
 let _dynMunicName   = '';     // "Nome, UF" format
 let _dynMunicUf     = '';
-let aoiLayer     = null;
+let aoiLayer            = null;
+let municBoundaryLayer  = null;  // 行政界レイヤ（レイヤコントロール登録用）
 let areaUrbanaLayer  = null;
 let _areaUrbanaOn    = false;
 let _activeIbgeCode  = null;
@@ -3312,6 +3313,9 @@ async function runRealDEMAnalysis(setStep, colorScheme = null) {
 const map = L.map('map', { center:[-15.0,-52.0], zoom:5, maxZoom:21, attributionControl:false, zoomControl:false });
 map.on('zoomend', () => _updateZoomVisibility());
 L.control.attribution({ prefix: '<a href="https://leafletjs.com" title="A JavaScript library for interactive maps">Leaflet</a>' }).addTo(map);
+map.createPane('municBoundPane');
+map.getPane('municBoundPane').style.zIndex  = 420;
+map.getPane('municBoundPane').style.pointerEvents = 'none';
 map.createPane('transectHitPane');
 map.getPane('transectHitPane').style.zIndex = 500;
 map.createPane('spLabelPane');
@@ -3443,6 +3447,7 @@ function _clearFluxoResults() {
   }
   if (slopeLayer)  { try { map.removeLayer(slopeLayer);  } catch(e){} slopeLayer  = null; }
   if (aoiLayer)    { try { map.removeLayer(aoiLayer);    } catch(e){} aoiLayer    = null; }
+  if (municBoundaryLayer) { try { layerControl.removeLayer(municBoundaryLayer); map.removeLayer(municBoundaryLayer); } catch(e){} municBoundaryLayer = null; }
   // Stage 2 layers
   if (transectLayer) { try { layerControl.removeLayer(transectLayer); map.removeLayer(transectLayer); } catch(e){} transectLayer = null; }
   if (topBotLayer)   { try { layerControl.removeLayer(topBotLayer);   map.removeLayer(topBotLayer);   } catch(e){} topBotLayer   = null; }
@@ -4549,8 +4554,22 @@ async function _setMunicAsAoi() {
   const code = mSel.value; if (!code) return;
   const uf   = document.getElementById('uf-select').value;
   const name = mSel.options[mSel.selectedIndex].text;
+  // 前回の行政界レイヤを削除
+  if (municBoundaryLayer) {
+    try { layerControl.removeLayer(municBoundaryLayer); map.removeLayer(municBoundaryLayer); } catch(e) {}
+    municBoundaryLayer = null;
+  }
   await loadMunicByIbge(parseInt(code), name, uf);
   _highlightAoiLayer();
+  // 行政界をレイヤコントロールに登録（斜面ラスタ上に常時表示）
+  if (aoiLayer) {
+    municBoundaryLayer = L.geoJSON(aoiLayer.toGeoJSON(), {
+      style: { color: '#1565c0', weight: 2.5, fill: false, opacity: 1 },
+      pane: 'municBoundPane'
+    }).addTo(map);
+    layerControl.addOverlay(municBoundaryLayer,
+      '<i class="fa fa-city fa-xs" style="color:#42a5f5"></i>&nbsp;Limite Municipal');
+  }
 }
 
 async function _setCmpMunicAsAoi() {
@@ -12435,6 +12454,7 @@ function onMunicChange() {
   if (manualDrawToolbar) exitManualDrawMode();
   manualZoneCounter = 0;
   const v = document.getElementById('munic-sel').value;
+  if (municBoundaryLayer) { try { layerControl.removeLayer(municBoundaryLayer); map.removeLayer(municBoundaryLayer); } catch(e){} municBoundaryLayer=null; }
   if (slopeLayer)       { map.removeLayer(slopeLayer);       slopeLayer=null; }
   if (slopeRasterLayer) { layerControl.removeLayer(slopeRasterLayer); map.removeLayer(slopeRasterLayer); slopeRasterLayer=null; }
   if (transectLayer) { layerControl.removeLayer(transectLayer); map.removeLayer(transectLayer); transectLayer=null; }
