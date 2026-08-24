@@ -1884,8 +1884,8 @@ let _deletedZoneIds  = new Set();
 let transectData     = {};
 let _demContours       = null;   // contour features for H sampling (real DEM only)
 let _contourSpatialIdx = null;  // 2D grid index for _sampleContourElev
-let _pendingContourSt  = null;  // deferred contour generation: DEM stats pending zoom-in
-let _contoursGenerated = false; // true once contour Leaflet layers have been built
+let _contourDemSt         = null;  // DEM stats for viewport-clipped contour generation
+let _contourComputedBounds = null; // L.LatLngBounds for which current contours are valid
 let acPolyData       = {};
 let adPolyData       = {};
 let acLayerMap       = {};
@@ -3314,6 +3314,11 @@ async function runRealDEMAnalysis(setStep, colorScheme = null) {
 // ================================================================
 const map = L.map('map', { center:[-15.0,-52.0], zoom:5, maxZoom:21, attributionControl:false, zoomControl:false });
 map.on('zoomend', () => _updateZoomVisibility());
+map.on('moveend', () => {
+  if (map.getZoom() < 16 || !_contourDemSt) return;
+  if (!_contourComputedBounds || !_contourComputedBounds.contains(map.getBounds()))
+    setTimeout(() => _buildContourLayers(_contourDemSt), 80);
+});
 L.control.attribution({ prefix: '<a href="https://leafletjs.com" title="A JavaScript library for interactive maps">Leaflet</a>' }).addTo(map);
 map.createPane('municBoundPane');
 map.getPane('municBoundPane').style.zIndex  = 420;
@@ -6045,13 +6050,52 @@ function computeAspect(grid, nR, nC) {
 
 let _contourMinorInt = 5;
 let _contourMajorInt = 20;
-// 等高線レイヤを生成してレイヤコントロールに登録する（遅延実行用）
-function _buildContourLayers(st) {
+// DEMグリッドを指定の地理的範囲でクリッピング（ビューポート最適化用）
+function _clipContourGrid(st, nLat, wLng, sLat, eLng) {
   const { _grid, _slope, _totW, _totH, _nwLat, _nwLng, _seLat, _seLng } = st;
+  const lngPx = (_seLng - _nwLng) / _totW;
+  const latPx = (_nwLat - _seLat) / _totH;
+  const c0 = Math.max(0, Math.floor((wLng - _nwLng) / lngPx));
+  const c1 = Math.min(_totW - 1, Math.ceil((eLng - _nwLng) / lngPx));
+  const r0 = Math.max(0, Math.floor((_nwLat - nLat) / latPx));
+  const r1 = Math.min(_totH - 1, Math.ceil((_nwLat - sLat) / latPx));
+  const newW = Math.max(1, c1 - c0 + 1);
+  const newH = Math.max(1, r1 - r0 + 1);
+  const grid  = new Float32Array(newW * newH);
+  const slope = _slope ? new Float32Array(newW * newH) : null;
+  for (let r = r0; r <= r1; r++) {
+    for (let c = c0; c <= c1; c++) {
+      const si = r * _totW + c, di = (r - r0) * newW + (c - c0);
+      grid[di] = _grid[si];
+      if (slope && _slope) slope[di] = _slope[si];
+    }
+  }
+  return {
+    grid, slope, totW: newW, totH: newH,
+    nwLat: _nwLat - r0 * latPx, nwLng: _nwLng + c0 * lngPx,
+    seLat: _nwLat - (r1 + 1) * latPx, seLng: _nwLng + (c1 + 1) * lngPx
+  };
+}
+
+// 等高線レイヤを生成してレイヤコントロールに登録する（ビューポートクリッピング対応）
+function _buildContourLayers(st) {
+  // ビューポートを100%パディングでクリッピング（パン耐性を持たせる）
+  const vb = map.getBounds();
+  const latPad = (vb.getNorth() - vb.getSouth());
+  const lngPad = (vb.getEast()  - vb.getWest());
+  const nLat = Math.min(vb.getNorth() + latPad, st._nwLat);
+  const sLat = Math.max(vb.getSouth() - latPad, st._seLat);
+  const wLng = Math.max(vb.getWest()  - lngPad, st._nwLng);
+  const eLng = Math.min(vb.getEast()  + lngPad, st._seLng);
+  if (nLat <= sLat || wLng >= eLng) return;
+  _contourComputedBounds = L.latLngBounds([[sLat, wLng], [nLat, eLng]]);
+
+  const clip = _clipContourGrid(st, nLat, wLng, sLat, eLng);
   const cellM = st.cellM || 30;
   const _demLbl = (DEM_META[selectedDEM] || {}).name || selectedDEM;
 
-  const cGJ = genContourLinesGeoJSON(_grid, _slope, _totW, _totH, _nwLat, _nwLng, _seLat, _seLng, cellM);
+  const cGJ = genContourLinesGeoJSON(clip.grid, clip.slope, clip.totW, clip.totH,
+    clip.nwLat, clip.nwLng, clip.seLat, clip.seLng, cellM);
   _demContours = cGJ ? cGJ.features : null;
   _buildContourIndex(_demContours);
 
@@ -6117,13 +6161,14 @@ function _updateZoomVisibility() {
   const z = map.getZoom();
   const show = z >= 16;
 
-  // 初回ズーム16到達時に等高線を遅延生成
-  if (show && !_contoursGenerated && _pendingContourSt) {
-    _contoursGenerated = true;
-    const _st = _pendingContourSt;
-    _pendingContourSt = null;
-    toast('info', '<i class="fa fa-layer-group" style="color:#4fc3f7"></i>&nbsp;Gerando curvas de nível 2m/10m...');
-    setTimeout(() => _buildContourLayers(_st), 80);
+  // ズーム16到達時：未生成またはビューポート外なら等高線を（再）生成
+  if (show && _contourDemSt) {
+    const vBounds = map.getBounds();
+    if (!_contourComputedBounds || !_contourComputedBounds.contains(vBounds)) {
+      if (!_contourComputedBounds)
+        toast('info', '<i class="fa fa-layer-group" style="color:#4fc3f7"></i>&nbsp;Gerando curvas de nível 2m/10m...');
+      setTimeout(() => _buildContourLayers(_contourDemSt), 80);
+    }
   }
 
   // 上端・下端を結ぶ線（transectLayer）
@@ -6520,11 +6565,11 @@ async function runSteps3to4RealDEM(st) {
     if (adGroupLayer)  { layerControl.removeLayer(adGroupLayer);  map.removeLayer(adGroupLayer);  adGroupLayer=null; }
     acLayerMap={}; adLayerMap={}; acPolyData={}; adPolyData={}; zoneStatus={}; zoneComments={}; hazardIndicia={}; hazardLevel={}; vulnerabilityLevel={}; riskLevel={};
 
-    // 等高線はズーム16到達時に遅延生成（Delimitar AC/AD の高速化）
+    // 等高線はズーム16到達時にビューポートクリッピングで遅延生成（高速化）
     _demContours = null;
     _contourSpatialIdx = null;
-    _contoursGenerated = false;
-    _pendingContourSt = st;
+    _contourDemSt = st;
+    _contourComputedBounds = null;
 
     setStep(10, 'Detectando zonas de risco (θ ≥ 25°)...');
     await delay(20);
@@ -6631,7 +6676,7 @@ function runSteps3to4Legacy() {
   if (transectLayer) { map.removeLayer(transectLayer); transectLayer=null; }
   if (topBotLayer)   { map.removeLayer(topBotLayer);   topBotLayer=null; }
   const lines=[], mkrs=[];
-  transectData={}; _demContours=null; _contourSpatialIdx=null; _pendingContourSt=null; _contoursGenerated=false;
+  transectData={}; _demContours=null; _contourSpatialIdx=null; _contourDemSt=null; _contourComputedBounds=null;
   slopeData.features.forEach(f=>{
     const ts=computeTransects(f);
     transectData[f.properties.id]=ts;
@@ -12484,7 +12529,7 @@ function onMunicChange() {
   manualZoneCounter = 0;
   const v = document.getElementById('munic-sel').value;
   if (municBoundaryLayer) { try { layerControl.removeLayer(municBoundaryLayer); map.removeLayer(municBoundaryLayer); } catch(e){} municBoundaryLayer=null; }
-  _pendingContourSt=null; _contoursGenerated=false;
+  _contourDemSt=null; _contourComputedBounds=null;
   if (slopeLayer)       { map.removeLayer(slopeLayer);       slopeLayer=null; }
   if (slopeRasterLayer) { layerControl.removeLayer(slopeRasterLayer); map.removeLayer(slopeRasterLayer); slopeRasterLayer=null; }
   if (transectLayer) { layerControl.removeLayer(transectLayer); map.removeLayer(transectLayer); transectLayer=null; }
@@ -12502,7 +12547,7 @@ function onMunicChange() {
   Object.keys(demCache).forEach(k => delete demCache[k]);
   analysisRun=false; step34Done=false; step6Done=false;
   _editUndoSnapshot = null;
-  transectData={}; _demContours=null; _contourSpatialIdx=null; _pendingContourSt=null; _contoursGenerated=false; acPolyData={}; adPolyData={}; acLayerMap={}; adLayerMap={};
+  transectData={}; _demContours=null; _contourSpatialIdx=null; _contourDemSt=null; _contourComputedBounds=null; acPolyData={}; adPolyData={}; acLayerMap={}; adLayerMap={};
   transectLayerMap={}; topBotLayerMap={};
   activeSectorSet=null; rasterImgBounds=null; zoneStatus={}; zoneComments={}; hazardIndicia={}; hazardLevel={}; vulnerabilityLevel={}; riskLevel={}; reviewedZones.clear(); currentReviewId=null;
   // Reset local DEM buffers
