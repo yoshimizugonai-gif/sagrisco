@@ -89,7 +89,7 @@ html,body{height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,sans-seri
 .contour-label{font-size:16px;color:#976f0a;font-weight:700;font-family:'Segoe UI',sans-serif;
   background:transparent !important;border:none !important;padding:0;white-space:nowrap;pointer-events:none;
   text-shadow:none;line-height:1.2}
-.contour-label-minor{font-size:11px;font-weight:400;opacity:0.75}
+.contour-label-minor{font-size:14px;font-weight:400;opacity:0.75}
 .transect-arrow{background:transparent !important;border:none !important;box-shadow:none !important;padding:0;cursor:pointer}
 @keyframes zone-pulse{0%{background:rgba(66,165,245,.22);outline:2px solid rgba(66,165,245,.6);border-radius:4px}100%{background:transparent;outline:2px solid transparent;border-radius:4px}}
 .zone-map-selected{animation:zone-pulse 5s ease-out forwards}
@@ -1872,6 +1872,8 @@ const demCache = {};       // { [key]: { dataUrl, imgBounds, stats } } per sourc
 // ── Etapa 2 state ──────────────────────────────────────────────
 let transectLayer    = null;
 let topBotLayer      = null;
+let _transectUserOn  = true;  // レイヤーコントロールでユーザーが表示中か
+let _topBotUserOn    = true;
 let acLayer          = null;
 let adLayer          = null;
 let contourMajorLayer = null;   // 計曲線 (index contours)
@@ -3355,6 +3357,8 @@ function _syncCmpDivider() {
   if (_cmpDividerEl) _cmpDividerEl.style.display = bothOn ? '' : 'none';
 }
 map.on('overlayadd', e => {
+  if (e.layer === transectLayer) { _transectUserOn = true; return; }
+  if (e.layer === topBotLayer)   { _topBotUserOn   = true; return; }
   if (e.layer === _cmpLayerProxyA) {
     if (_cmpOverlayA) _cmpOverlayA.addTo(map);
     if (_cmpLegendA)  { _cmpLegendA.style.display = ''; requestAnimationFrame(_repositionCmpLegendA); }
@@ -3368,6 +3372,8 @@ map.on('overlayadd', e => {
   }
 });
 map.on('overlayremove', e => {
+  if (e.layer === transectLayer) { _transectUserOn = false; return; }
+  if (e.layer === topBotLayer)   { _topBotUserOn   = false; return; }
   if (e.layer === _cmpLayerProxyA) {
     if (_cmpOverlayA && map.hasLayer(_cmpOverlayA)) map.removeLayer(_cmpOverlayA);
     if (_cmpLegendA)  { _cmpLegendA.style.display = 'none'; _repositionCmpLegendA(); }
@@ -6126,14 +6132,31 @@ function _buildContourLayers(st) {
   _contourComputedBounds = L.latLngBounds([[sLat, wLng], [nLat, eLng]]);
 
   let clip = _clipContourGrid(st, nLat, wLng, sLat, eLng);
-  // 高解像度DEM対策：等高線生成グリッドを最大600×600に制限
-  clip = _downsampleForContour(clip, 600);
+  // ズームレベルに応じてグリッドサイズを段階的に制限（zoom16が最もビューポートが広いため最小）
+  const curZ = map.getZoom();
+  const maxDim = curZ >= 19 ? 600 : curZ >= 18 ? 500 : curZ >= 17 ? 400 : 300;
+  clip = _downsampleForContour(clip, maxDim);
 
   const cellM = st.cellM || 30;
   const _demLbl = (DEM_META[selectedDEM] || {}).name || selectedDEM;
 
+  // ズームレベルに応じて等高線間隔を調整
+  // zoom16-18: 計曲線のみ（minorInt=majorIntで全て計曲線扱い、threshold数を最小化）
+  // zoom19+: GIDES準拠2m主曲線 / 10m計曲線
+  const zMajorInt = curZ >= 17 ? 10 : 20;
+  const zMinorInt = curZ >= 19 ? 2 : zMajorInt;
+  // 間隔が変わった場合（zoom16→17の遷移）は既存レイヤーをリセットしてlayerControlラベルを更新
+  if (contourMajorLayer && _contourMajorInt !== zMajorInt) {
+    try { layerControl.removeLayer(contourMajorLayer); map.removeLayer(contourMajorLayer); } catch(e) {}
+    contourMajorLayer = null;
+  }
+  if (contourMinorLayer && _contourMinorInt !== zMinorInt) {
+    try { layerControl.removeLayer(contourMinorLayer); map.removeLayer(contourMinorLayer); } catch(e) {}
+    contourMinorLayer = null;
+  }
+
   const cGJ = genContourLinesGeoJSON(clip.grid, clip.slope, clip.totW, clip.totH,
-    clip.nwLat, clip.nwLng, clip.seLat, clip.seLng, cellM);
+    clip.nwLat, clip.nwLng, clip.seLat, clip.seLng, cellM, zMinorInt, zMajorInt);
   _demContours = cGJ ? cGJ.features : null;
   _buildContourIndex(_demContours);
 
@@ -6153,7 +6176,7 @@ function _buildContourLayers(st) {
   const mkIcon = (elev, cls) => L.divIcon({ className: cls, html:`${Math.round(elev)}`, iconSize:null });
   // 等間隔マルチラベル: 長い等高線にも複数ラベルを配置し、パン後もビューポート内に常に表示
   const STEP_MAJOR = 400;  // 計曲線: 400座標ごとに1ラベル
-  const STEP_MINOR = 70;   // 主曲線: 70座標ごとに1ラベル
+  const STEP_MINOR = 150;  // 主曲線: 150座標ごとに1ラベル
   // d3.contoursはDEM境界で等高線を境界に沿って閉じるため、境界付近にラベルが集中する
   // → DEM範囲の3%以内の座標はラベル配置から除外する
   const _bW = (st._seLng - st._nwLng) * 0.03;
@@ -6239,25 +6262,32 @@ function _buildContourLayers(st) {
 function _updateZoomVisibility() {
   const z = map.getZoom();
   const show = z >= 16;
+  let _pendingRebuild = false;
 
-  // ズーム16到達時：未生成またはビューポート外なら等高線を（再）生成
+  // ズーム16到達時：未生成・ビューポート外・間隔変化のいずれかでリビルド
   if (show && _contourDemSt) {
     const vBounds = map.getBounds();
-    if (!_contourComputedBounds || !_contourComputedBounds.contains(vBounds)) {
+    const curZ = map.getZoom();
+    const neededMajor = curZ >= 17 ? 10 : 20;
+    const neededMinor = curZ >= 19 ? 2 : neededMajor;
+    const intervalsChanged = !!_contourComputedBounds &&
+      (_contourMajorInt !== neededMajor || _contourMinorInt !== neededMinor);
+    if (!_contourComputedBounds || !_contourComputedBounds.contains(vBounds) || intervalsChanged) {
       if (!_contourComputedBounds)
-        toast('info', '<i class="fa fa-layer-group" style="color:#4fc3f7"></i>&nbsp;Gerando curvas de nível 2m/10m...');
+        toast('info', '<i class="fa fa-layer-group" style="color:#4fc3f7"></i>&nbsp;Gerando curvas de nível...');
       _scheduleContourRebuild();
+      _pendingRebuild = true;
     }
   }
 
-  // 上端・下端を結ぶ線（transectLayer）
+  // 上端・下端を結ぶ線（transectLayer）— ユーザーが非表示にした場合は強制表示しない
   if (transectLayer) {
-    if (show  && !map.hasLayer(transectLayer)) transectLayer.addTo(map);
+    if (show  && _transectUserOn && !map.hasLayer(transectLayer)) transectLayer.addTo(map);
     if (!show &&  map.hasLayer(transectLayer)) map.removeLayer(transectLayer);
   }
   // 上端・下端ポイント（topBotLayer）
   if (topBotLayer) {
-    if (show  && !map.hasLayer(topBotLayer)) topBotLayer.addTo(map);
+    if (show  && _topBotUserOn && !map.hasLayer(topBotLayer)) topBotLayer.addTo(map);
     if (!show &&  map.hasLayer(topBotLayer)) map.removeLayer(topBotLayer);
   }
   // SP_XX Setorラベル
@@ -6274,6 +6304,14 @@ function _updateZoomVisibility() {
   if (contourMinorLayer) {
     if (show  && !map.hasLayer(contourMinorLayer)) contourMinorLayer.addTo(map);
     if (!show &&  map.hasLayer(contourMinorLayer)) map.removeLayer(contourMinorLayer);
+  }
+
+  // リビルド待ち中：既存ラベルを即時撤去してフラッシュを防ぐ
+  if (_pendingRebuild) {
+    if (contourLabelFullLayer  && map.hasLayer(contourLabelFullLayer))  map.removeLayer(contourLabelFullLayer);
+    if (contourLabelThinLayer  && map.hasLayer(contourLabelThinLayer))  map.removeLayer(contourLabelThinLayer);
+    if (contourLabelMinorLayer && map.hasLayer(contourLabelMinorLayer)) map.removeLayer(contourLabelMinorLayer);
+    return;
   }
 
   // 計曲線ラベル（zoom≥17: 全表示 / zoom=16: 間引き / zoom<16: 非表示）
@@ -6295,15 +6333,15 @@ function _updateZoomVisibility() {
   }
 }
 
-function genContourLinesGeoJSON(elevGrid, slopeArr, totW, totH, nwLat, nwLng, seLat, seLng, cellM) {
+function genContourLinesGeoJSON(elevGrid, slopeArr, totW, totH, nwLat, nwLng, seLat, seLng, cellM, minorIntParam, majorIntParam) {
   if (typeof d3 === 'undefined' || !d3.contours) return null;
   let mn = Infinity, mx = -Infinity;
   for (let i = 0; i < elevGrid.length; i++) {
     if (elevGrid[i] > DEM_NODATA + 1) { mn = Math.min(mn, elevGrid[i]); mx = Math.max(mx, elevGrid[i]); }
   }
   if (!isFinite(mn)) return null;
-  const minorInt = 2;   // GIDES §2.2.1: 主曲線2m
-  const majorInt = 10;  // GIDES §2.2.1: 計曲線10m
+  const minorInt = minorIntParam || 2;   // GIDES §2.2.1: 主曲線2m（zoom<17は5m）
+  const majorInt = majorIntParam || 10;  // GIDES §2.2.1: 計曲線10m（zoom<17は20m）
   _contourMinorInt = minorInt;
   _contourMajorInt = majorInt;
   const thresholds = [];
