@@ -89,6 +89,7 @@ html,body{height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,sans-seri
 .contour-label{font-size:16px;color:#976f0a;font-weight:700;font-family:'Segoe UI',sans-serif;
   background:transparent !important;border:none !important;padding:0;white-space:nowrap;pointer-events:none;
   text-shadow:none;line-height:1.2}
+.contour-label-minor{font-size:11px;font-weight:400;opacity:0.75}
 .transect-arrow{background:transparent !important;border:none !important;box-shadow:none !important;padding:0;cursor:pointer}
 @keyframes zone-pulse{0%{background:rgba(66,165,245,.22);outline:2px solid rgba(66,165,245,.6);border-radius:4px}100%{background:transparent;outline:2px solid transparent;border-radius:4px}}
 .zone-map-selected{animation:zone-pulse 5s ease-out forwards}
@@ -1875,8 +1876,9 @@ let acLayer          = null;
 let adLayer          = null;
 let contourMajorLayer = null;   // 計曲線 (index contours)
 let contourMinorLayer = null;   // 主曲線 (intermediate contours)
-let contourLabelFullLayer = null; // ズーム高(≥14): 全ラベル
-let contourLabelThinLayer = null; // ズーム中(12-13): 間引きラベル
+let contourLabelFullLayer  = null; // 計曲線ラベル全表示（zoom≥17）
+let contourLabelThinLayer  = null; // 計曲線ラベル間引き（zoom=16）
+let contourLabelMinorLayer = null; // 主曲線ラベル（zoom≥19）
 let step34Done       = false;
 let step6Done        = false;
 let _lastRpStep      = 1;
@@ -1886,6 +1888,7 @@ let _demContours       = null;   // contour features for H sampling (real DEM on
 let _contourSpatialIdx = null;  // 2D grid index for _sampleContourElev
 let _contourDemSt         = null;  // DEM stats for viewport-clipped contour generation
 let _contourComputedBounds = null; // L.LatLngBounds for which current contours are valid
+let _contourBuildTimer    = null;  // debounce timer for _buildContourLayers
 let acPolyData       = {};
 let adPolyData       = {};
 let acLayerMap       = {};
@@ -3317,7 +3320,7 @@ map.on('zoomend', () => _updateZoomVisibility());
 map.on('moveend', () => {
   if (map.getZoom() < 16 || !_contourDemSt) return;
   if (!_contourComputedBounds || !_contourComputedBounds.contains(map.getBounds()))
-    setTimeout(() => _buildContourLayers(_contourDemSt), 80);
+    _scheduleContourRebuild();
 });
 L.control.attribution({ prefix: '<a href="https://leafletjs.com" title="A JavaScript library for interactive maps">Leaflet</a>' }).addTo(map);
 map.createPane('municBoundPane');
@@ -3462,7 +3465,8 @@ function _clearFluxoResults() {
   if (contourMajorLayer) { try { layerControl.removeLayer(contourMajorLayer); map.removeLayer(contourMajorLayer); } catch(e){} contourMajorLayer = null; }
   if (contourMinorLayer) { try { layerControl.removeLayer(contourMinorLayer); map.removeLayer(contourMinorLayer); } catch(e){} contourMinorLayer = null; }
   if (contourLabelFullLayer) { try { map.removeLayer(contourLabelFullLayer); } catch(e){} contourLabelFullLayer = null; }
-  if (contourLabelThinLayer) { try { map.removeLayer(contourLabelThinLayer); } catch(e){} contourLabelThinLayer = null; }
+  if (contourLabelThinLayer)  { try { map.removeLayer(contourLabelThinLayer);  } catch(e){} contourLabelThinLayer  = null; }
+  if (contourLabelMinorLayer) { try { map.removeLayer(contourLabelMinorLayer); } catch(e){} contourLabelMinorLayer = null; }
   const _lci1 = document.getElementById('map-leg-contour-info'); if (_lci1) _lci1.style.display = 'none';
   if (acGroupLayer)  { try { layerControl.removeLayer(acGroupLayer);  map.removeLayer(acGroupLayer);  } catch(e){} acGroupLayer  = null; }
   if (adGroupLayer)  { try { layerControl.removeLayer(adGroupLayer);  map.removeLayer(adGroupLayer);  } catch(e){} adGroupLayer  = null; }
@@ -6050,6 +6054,37 @@ function computeAspect(grid, nR, nC) {
 
 let _contourMinorInt = 5;
 let _contourMajorInt = 20;
+
+// 等高線リビルドのdebounce（300ms — zoomend+moveendの重複発火を1回に集約）
+function _scheduleContourRebuild() {
+  if (_contourBuildTimer) clearTimeout(_contourBuildTimer);
+  _contourBuildTimer = setTimeout(() => {
+    _contourBuildTimer = null;
+    if (_contourDemSt) _buildContourLayers(_contourDemSt);
+  }, 300);
+}
+
+// 等高線生成用グリッドを最大次元に制限（高解像度DEM対策）
+function _downsampleForContour(clip, maxDim) {
+  const { grid, slope, totW, totH, nwLat, nwLng, seLat, seLng } = clip;
+  const scale = Math.min(maxDim / totW, maxDim / totH);
+  if (scale >= 1) return clip;
+  const newW = Math.max(1, Math.round(totW * scale));
+  const newH = Math.max(1, Math.round(totH * scale));
+  const newGrid  = new Float32Array(newW * newH);
+  const newSlope = slope ? new Float32Array(newW * newH) : null;
+  for (let r = 0; r < newH; r++) {
+    const sr = Math.min(totH - 1, Math.round(r / scale));
+    for (let c = 0; c < newW; c++) {
+      const sc = Math.min(totW - 1, Math.round(c / scale));
+      const si = sr * totW + sc;
+      newGrid[r * newW + c] = grid[si];
+      if (newSlope && slope) newSlope[r * newW + c] = slope[si];
+    }
+  }
+  return { grid: newGrid, slope: newSlope, totW: newW, totH: newH, nwLat, nwLng, seLat, seLng };
+}
+
 // DEMグリッドを指定の地理的範囲でクリッピング（ビューポート最適化用）
 function _clipContourGrid(st, nLat, wLng, sLat, eLng) {
   const { _grid, _slope, _totW, _totH, _nwLat, _nwLng, _seLat, _seLng } = st;
@@ -6079,10 +6114,10 @@ function _clipContourGrid(st, nLat, wLng, sLat, eLng) {
 
 // 等高線レイヤを生成してレイヤコントロールに登録する（ビューポートクリッピング対応）
 function _buildContourLayers(st) {
-  // ビューポートを100%パディングでクリッピング（パン耐性を持たせる）
+  // ビューポートを150%パディングでクリッピング（パン耐性を持たせる）
   const vb = map.getBounds();
-  const latPad = (vb.getNorth() - vb.getSouth());
-  const lngPad = (vb.getEast()  - vb.getWest());
+  const latPad = (vb.getNorth() - vb.getSouth()) * 1.5;
+  const lngPad = (vb.getEast()  - vb.getWest())  * 1.5;
   const nLat = Math.min(vb.getNorth() + latPad, st._nwLat);
   const sLat = Math.max(vb.getSouth() - latPad, st._seLat);
   const wLng = Math.max(vb.getWest()  - lngPad, st._nwLng);
@@ -6090,7 +6125,10 @@ function _buildContourLayers(st) {
   if (nLat <= sLat || wLng >= eLng) return;
   _contourComputedBounds = L.latLngBounds([[sLat, wLng], [nLat, eLng]]);
 
-  const clip = _clipContourGrid(st, nLat, wLng, sLat, eLng);
+  let clip = _clipContourGrid(st, nLat, wLng, sLat, eLng);
+  // 高解像度DEM対策：等高線生成グリッドを最大600×600に制限
+  clip = _downsampleForContour(clip, 600);
+
   const cellM = st.cellM || 30;
   const _demLbl = (DEM_META[selectedDEM] || {}).name || selectedDEM;
 
@@ -6110,38 +6148,79 @@ function _buildContourLayers(st) {
     filter: f => f.properties.major,
     style: () => ({ color:'#976f0a', weight:1.3, opacity:0.6 })
   });
-  const lblsFull = [], lblsThin = [];
+  const lblsFull = [], lblsThin = [], lblsMinor = [];
+  const mkOpts = { interactive: false, keyboard: false };
+  const mkIcon = (elev, cls) => L.divIcon({ className: cls, html:`${Math.round(elev)}`, iconSize:null });
+  // 等間隔マルチラベル: 長い等高線にも複数ラベルを配置し、パン後もビューポート内に常に表示
+  const STEP_MAJOR = 400;  // 計曲線: 400座標ごとに1ラベル
+  const STEP_MINOR = 70;   // 主曲線: 70座標ごとに1ラベル
+  // d3.contoursはDEM境界で等高線を境界に沿って閉じるため、境界付近にラベルが集中する
+  // → DEM範囲の3%以内の座標はラベル配置から除外する
+  const _bW = (st._seLng - st._nwLng) * 0.03;
+  const _bH = (st._nwLat - st._seLat) * 0.03;
+  const _onEdge = ([lng, lat]) =>
+    lng <= st._nwLng + _bW || lng >= st._seLng - _bW ||
+    lat >= st._nwLat - _bH || lat <= st._seLat + _bH;
   cGJ.features.forEach(f => {
-    if (!f.properties.major) return;
     const coords = f.geometry.coordinates;
-    if (!coords.length) return;
-    const mid = coords[Math.floor(coords.length / 2)];
-    const mkOpts = { interactive: false, keyboard: false };
-    const mkIcon = elev => L.divIcon({ className:'contour-label', html:`${Math.round(elev)}`, iconSize:null });
-    lblsFull.push(L.marker([mid[1], mid[0]], { ...mkOpts, icon: mkIcon(f.properties.elevation) }));
-    if (coords.length >= 20)
-      lblsThin.push(L.marker([mid[1], mid[0]], { ...mkOpts, icon: mkIcon(f.properties.elevation) }));
+    if (coords.length < 2) return;
+    if (f.properties.major) {
+      // zoom≥17 (full): 等間隔で複数ラベル（境界付近はスキップ）
+      for (let i = Math.floor(STEP_MAJOR / 2); i < coords.length; i += STEP_MAJOR) {
+        const pt = coords[i];
+        if (_onEdge(pt)) continue;
+        lblsFull.push(L.marker([pt[1], pt[0]], { ...mkOpts, icon: mkIcon(f.properties.elevation, 'contour-label') }));
+      }
+      // zoom=16 (thin): 長い線のみ中間1点
+      if (coords.length >= 10) {
+        const mid = coords[Math.floor(coords.length / 2)];
+        if (!_onEdge(mid))
+          lblsThin.push(L.marker([mid[1], mid[0]], { ...mkOpts, icon: mkIcon(f.properties.elevation, 'contour-label') }));
+      }
+    } else {
+      // zoom≥19 (minor): 等間隔で複数ラベル（境界付近はスキップ、表示はzoom≥19のみ）
+      for (let i = Math.floor(STEP_MINOR / 2); i < coords.length; i += STEP_MINOR) {
+        const pt = coords[i];
+        if (_onEdge(pt)) continue;
+        lblsMinor.push(L.marker([pt[1], pt[0]], { ...mkOpts, icon: mkIcon(f.properties.elevation, 'contour-label contour-label-minor') }));
+      }
+    }
   });
-  if (contourLabelFullLayer) { try { map.removeLayer(contourLabelFullLayer); } catch(e){} }
-  if (contourLabelThinLayer) { try { map.removeLayer(contourLabelThinLayer); } catch(e){} }
-  contourLabelFullLayer = L.layerGroup(lblsFull);
-  contourLabelThinLayer = L.layerGroup(lblsThin);
-  if (contourMajorLayer) { try { layerControl.removeLayer(contourMajorLayer); map.removeLayer(contourMajorLayer); } catch(e){} }
-  contourMajorLayer = L.layerGroup([casingLyr, majorLinesLyr]);
-  layerControl.addOverlay(contourMajorLayer,
-    `<i class="fa fa-minus fa-xs" style="color:#976f0a"></i>&nbsp;Curvas Mestras (${_contourMajorInt} m)` +
-    `<div style="font-size:10px;color:#546e7a;padding-left:14px;line-height:1.4">${_demLbl}</div>`);
+  if (contourLabelFullLayer)  { try { map.removeLayer(contourLabelFullLayer);  } catch(e){} }
+  if (contourLabelThinLayer)  { try { map.removeLayer(contourLabelThinLayer);  } catch(e){} }
+  if (contourLabelMinorLayer) { try { map.removeLayer(contourLabelMinorLayer); } catch(e){} }
+  contourLabelFullLayer  = L.layerGroup(lblsFull);
+  contourLabelThinLayer  = L.layerGroup(lblsThin);
+  contourLabelMinorLayer = L.layerGroup(lblsMinor);
+
+  // contourMajorLayer: 初回のみlayerControl登録（パン・ズームによるリビルドでは再登録しない）
+  const firstMajor = !contourMajorLayer;
+  if (firstMajor) {
+    contourMajorLayer = L.layerGroup();
+    layerControl.addOverlay(contourMajorLayer,
+      `<i class="fa fa-minus fa-xs" style="color:#976f0a"></i>&nbsp;Curvas Mestras (${_contourMajorInt} m)` +
+      `<div style="font-size:10px;color:#546e7a;padding-left:14px;line-height:1.4">${_demLbl}</div>`);
+  } else {
+    contourMajorLayer.clearLayers();
+  }
+  contourMajorLayer.addLayer(casingLyr);
+  contourMajorLayer.addLayer(majorLinesLyr);
 
   // 主曲線
   const minorLinesLyr = L.geoJSON(cGJ, {
     filter: f => !f.properties.major,
     style: () => ({ color:'#976f0a', weight:0.7, opacity:0.5 })
   });
-  if (contourMinorLayer) { try { layerControl.removeLayer(contourMinorLayer); map.removeLayer(contourMinorLayer); } catch(e){} }
-  contourMinorLayer = L.layerGroup([minorLinesLyr]);
-  layerControl.addOverlay(contourMinorLayer,
-    `<i class="fa fa-minus fa-xs" style="color:#976f0a;opacity:.6"></i>&nbsp;Curvas Intermediárias (${_contourMinorInt} m)` +
-    `<div style="font-size:10px;color:#546e7a;padding-left:14px;line-height:1.4">${_demLbl}</div>`);
+  const firstMinor = !contourMinorLayer;
+  if (firstMinor) {
+    contourMinorLayer = L.layerGroup();
+    layerControl.addOverlay(contourMinorLayer,
+      `<i class="fa fa-minus fa-xs" style="color:#976f0a;opacity:.6"></i>&nbsp;Curvas Intermediárias (${_contourMinorInt} m)` +
+      `<div style="font-size:10px;color:#546e7a;padding-left:14px;line-height:1.4">${_demLbl}</div>`);
+  } else {
+    contourMinorLayer.clearLayers();
+  }
+  contourMinorLayer.addLayer(minorLinesLyr);
 
   // 凡例更新
   const _legSrc = document.getElementById('map-leg-contour-src');
@@ -6167,7 +6246,7 @@ function _updateZoomVisibility() {
     if (!_contourComputedBounds || !_contourComputedBounds.contains(vBounds)) {
       if (!_contourComputedBounds)
         toast('info', '<i class="fa fa-layer-group" style="color:#4fc3f7"></i>&nbsp;Gerando curvas de nível 2m/10m...');
-      setTimeout(() => _buildContourLayers(_contourDemSt), 80);
+      _scheduleContourRebuild();
     }
   }
 
@@ -6197,7 +6276,7 @@ function _updateZoomVisibility() {
     if (!show &&  map.hasLayer(contourMinorLayer)) map.removeLayer(contourMinorLayer);
   }
 
-  // 等高線ラベル（zoom≥17: 全表示 / zoom=16: 間引き / zoom<16: 非表示）
+  // 計曲線ラベル（zoom≥17: 全表示 / zoom=16: 間引き / zoom<16: 非表示）
   if (!contourLabelFullLayer && !contourLabelThinLayer) return;
   if (z >= 17) {
     if (contourLabelThinLayer && map.hasLayer(contourLabelThinLayer)) map.removeLayer(contourLabelThinLayer);
@@ -6208,6 +6287,11 @@ function _updateZoomVisibility() {
   } else {
     if (contourLabelFullLayer && map.hasLayer(contourLabelFullLayer)) map.removeLayer(contourLabelFullLayer);
     if (contourLabelThinLayer && map.hasLayer(contourLabelThinLayer)) map.removeLayer(contourLabelThinLayer);
+  }
+  // 主曲線ラベル（zoom≥19のみ表示）
+  if (contourLabelMinorLayer) {
+    if (z >= 19 && !map.hasLayer(contourLabelMinorLayer)) contourLabelMinorLayer.addTo(map);
+    if (z  < 19 &&  map.hasLayer(contourLabelMinorLayer)) map.removeLayer(contourLabelMinorLayer);
   }
 }
 
@@ -6554,12 +6638,14 @@ async function runSteps3to4RealDEM(st) {
         `AOI extenso (~${_areaKm2} km² / ${_totW}×${_totH} px) — ` +
         `O processamento pode demorar. Intervalo de curvas e número de perfis serão ajustados automaticamente.`);
     }
+    if (_contourBuildTimer) { clearTimeout(_contourBuildTimer); _contourBuildTimer=null; }
     if (transectLayer) { layerControl.removeLayer(transectLayer); map.removeLayer(transectLayer); transectLayer=null; }
     if (topBotLayer)   { layerControl.removeLayer(topBotLayer);   map.removeLayer(topBotLayer);   topBotLayer=null; }
     if (contourMajorLayer) { layerControl.removeLayer(contourMajorLayer); map.removeLayer(contourMajorLayer); contourMajorLayer=null; }
     if (contourMinorLayer) { layerControl.removeLayer(contourMinorLayer); map.removeLayer(contourMinorLayer); contourMinorLayer=null; }
-    if (contourLabelFullLayer) { try { map.removeLayer(contourLabelFullLayer); } catch(e){} contourLabelFullLayer=null; }
-    if (contourLabelThinLayer) { try { map.removeLayer(contourLabelThinLayer); } catch(e){} contourLabelThinLayer=null; }
+    if (contourLabelFullLayer)  { try { map.removeLayer(contourLabelFullLayer);  } catch(e){} contourLabelFullLayer=null; }
+    if (contourLabelThinLayer)  { try { map.removeLayer(contourLabelThinLayer);  } catch(e){} contourLabelThinLayer=null; }
+    if (contourLabelMinorLayer) { try { map.removeLayer(contourLabelMinorLayer); } catch(e){} contourLabelMinorLayer=null; }
     const _lci2 = document.getElementById('map-leg-contour-info'); if (_lci2) _lci2.style.display = 'none';
     if (acGroupLayer)  { layerControl.removeLayer(acGroupLayer);  map.removeLayer(acGroupLayer);  acGroupLayer=null; }
     if (adGroupLayer)  { layerControl.removeLayer(adGroupLayer);  map.removeLayer(adGroupLayer);  adGroupLayer=null; }
@@ -6570,6 +6656,7 @@ async function runSteps3to4RealDEM(st) {
     _contourSpatialIdx = null;
     _contourDemSt = st;
     _contourComputedBounds = null;
+    if (_contourBuildTimer) { clearTimeout(_contourBuildTimer); _contourBuildTimer = null; }
 
     setStep(10, 'Detectando zonas de risco (θ ≥ 25°)...');
     await delay(20);
@@ -12530,14 +12617,16 @@ function onMunicChange() {
   const v = document.getElementById('munic-sel').value;
   if (municBoundaryLayer) { try { layerControl.removeLayer(municBoundaryLayer); map.removeLayer(municBoundaryLayer); } catch(e){} municBoundaryLayer=null; }
   _contourDemSt=null; _contourComputedBounds=null;
+  if (_contourBuildTimer) { clearTimeout(_contourBuildTimer); _contourBuildTimer=null; }
   if (slopeLayer)       { map.removeLayer(slopeLayer);       slopeLayer=null; }
   if (slopeRasterLayer) { layerControl.removeLayer(slopeRasterLayer); map.removeLayer(slopeRasterLayer); slopeRasterLayer=null; }
   if (transectLayer) { layerControl.removeLayer(transectLayer); map.removeLayer(transectLayer); transectLayer=null; }
   if (topBotLayer)   { layerControl.removeLayer(topBotLayer);   map.removeLayer(topBotLayer);   topBotLayer=null; }
   if (contourMajorLayer) { layerControl.removeLayer(contourMajorLayer); map.removeLayer(contourMajorLayer); contourMajorLayer=null; }
   if (contourMinorLayer) { layerControl.removeLayer(contourMinorLayer); map.removeLayer(contourMinorLayer); contourMinorLayer=null; }
-  if (contourLabelFullLayer) { try { map.removeLayer(contourLabelFullLayer); } catch(e){} contourLabelFullLayer=null; }
-  if (contourLabelThinLayer) { try { map.removeLayer(contourLabelThinLayer); } catch(e){} contourLabelThinLayer=null; }
+  if (contourLabelFullLayer)  { try { map.removeLayer(contourLabelFullLayer);  } catch(e){} contourLabelFullLayer=null; }
+  if (contourLabelThinLayer)  { try { map.removeLayer(contourLabelThinLayer);  } catch(e){} contourLabelThinLayer=null; }
+  if (contourLabelMinorLayer) { try { map.removeLayer(contourLabelMinorLayer); } catch(e){} contourLabelMinorLayer=null; }
   const _lci3 = document.getElementById('map-leg-contour-info'); if (_lci3) _lci3.style.display = 'none';
   if (acGroupLayer)  { layerControl.removeLayer(acGroupLayer);  map.removeLayer(acGroupLayer);  acGroupLayer=null; }
   if (adGroupLayer)  { layerControl.removeLayer(adGroupLayer);  map.removeLayer(adGroupLayer);  adGroupLayer=null; }
