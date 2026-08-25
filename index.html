@@ -4909,16 +4909,31 @@ function _updateCmpClip(x) {
   const bOn = _cmpOverlayB && map.hasLayer(_cmpOverlayB);
   const imgA = _cmpOverlayA?.getElement();
   const imgB = _cmpOverlayB?.getElement();
+  const mapEl = map.getContainer();
+  const mapRect = mapEl.getBoundingClientRect();
+  const D = mapRect.left + x / 100 * mapRect.width;
 
   if (aOn && bOn) {
     if (_cmpDividerEl) _cmpDividerEl.style.left = x + '%';
-    const mapEl = map.getContainer();
-    const D     = mapEl.getBoundingClientRect().left + x / 100 * mapEl.getBoundingClientRect().width;
     if (imgA) { const rA = imgA.getBoundingClientRect(); imgA.style.clipPath = `inset(0 ${Math.max(0, rA.right - D).toFixed(1)}px 0 0)`; }
     if (imgB) { const rB = imgB.getBoundingClientRect(); imgB.style.clipPath = `inset(0 0 0 ${Math.max(0, D - rB.left).toFixed(1)}px)`; }
   } else {
     if (imgA) imgA.style.clipPath = '';
     if (imgB) imgB.style.clipPath = '';
+  }
+
+  // 比較等高線SVGのスワイプクリップ（ペインDIVはサイズゼロなのでSVG要素に直接適用）
+  if (_cmpViewMode === 'swipe') {
+    const paneA = map.getPane('cmpCtrPaneA');
+    const paneB = map.getPane('cmpCtrPaneB');
+    if (paneA) paneA.querySelectorAll('svg').forEach(svg => {
+      const r = svg.getBoundingClientRect();
+      if (r.width > 0) svg.style.clipPath = `inset(0 ${Math.max(0, r.right - D).toFixed(1)}px 0 0)`;
+    });
+    if (paneB) paneB.querySelectorAll('svg').forEach(svg => {
+      const r = svg.getBoundingClientRect();
+      if (r.width > 0) svg.style.clipPath = `inset(0 0 0 ${Math.max(0, D - r.left).toFixed(1)}px)`;
+    });
   }
 }
 
@@ -5097,6 +5112,11 @@ function _setCmpViewMode(mode) {
     if (_cmpDividerEl) _cmpDividerEl.style.display = 'none';
     if (_cmpLegendA)   { _cmpLegendA.style.display = 'none'; _repositionCmpLegendA(); }
     if (_cmpLegendB)   _cmpLegendB.style.display   = 'none';
+    // ゾーン比較モード: 等高線SVGのクリップを解除して両DEMを全面表示
+    ['cmpCtrPaneA', 'cmpCtrPaneB'].forEach(pn => {
+      const p = map.getPane(pn);
+      if (p) p.querySelectorAll('svg').forEach(s => { s.style.clipPath = ''; });
+    });
     _buildCmpZones();
   }
 }
@@ -6367,7 +6387,7 @@ function _updateZoomVisibility() {
   }
 }
 
-// ── Pesquisa 比較等高線（2色オーバーレイ）──────────────────────────────────
+// ── Pesquisa 比較等高線（スワイプ統合：A=左側、B=右側）──────────────────────────────────
 function _buildCmpContourLayers() {
   if (!_cmpStatsA || !_cmpStatsB || map.getZoom() < 16) return;
   const vb = map.getBounds();
@@ -6382,7 +6402,21 @@ function _buildCmpContourLayers() {
     [vb.getNorth() + latPad, vb.getEast() + lngPad]
   ]);
 
-  function _genCmpLayer(statsObj, lineColor) {
+  // カスタムペイン作成（初回のみ）: A=左スワイプ側、B=右スワイプ側
+  if (!map.getPane('cmpCtrPaneA')) {
+    map.createPane('cmpCtrPaneA');
+    const pA = map.getPane('cmpCtrPaneA');
+    pA.style.zIndex = '420';
+    pA.style.pointerEvents = 'none';
+  }
+  if (!map.getPane('cmpCtrPaneB')) {
+    map.createPane('cmpCtrPaneB');
+    const pB = map.getPane('cmpCtrPaneB');
+    pB.style.zIndex = '430';
+    pB.style.pointerEvents = 'none';
+  }
+
+  function _genCmpLayer(statsObj, lineColor, paneName) {
     const nLat = Math.min(vb.getNorth() + latPad, statsObj._nwLat);
     const sLat = Math.max(vb.getSouth() - latPad, statsObj._seLat);
     const wLng = Math.max(vb.getWest()  - lngPad, statsObj._nwLng);
@@ -6395,11 +6429,11 @@ function _buildCmpContourLayers() {
     if (!cGJ) return { lyr: null, cGJ: null, clipBounds: null };
     const clipBounds = { nLat: clip.nwLat, wLng: clip.nwLng, sLat: clip.seLat, eLng: clip.seLng };
     const lyr = L.layerGroup([
-      L.geoJSON(cGJ, { filter: f => f.properties.major,
+      L.geoJSON(cGJ, { pane: paneName, filter: f => f.properties.major,
         style: () => ({ color:'#fff', weight:2.2, opacity:0.15, lineCap:'round', lineJoin:'round' }) }),
-      L.geoJSON(cGJ, { filter: f => f.properties.major,
+      L.geoJSON(cGJ, { pane: paneName, filter: f => f.properties.major,
         style: () => ({ color:lineColor, weight:1.2, opacity:0.55, lineCap:'round', lineJoin:'round' }) }),
-      L.geoJSON(cGJ, { filter: f => !f.properties.major,
+      L.geoJSON(cGJ, { pane: paneName, filter: f => !f.properties.major,
         style: () => ({ color:lineColor, weight:0.6, opacity:0.35, lineCap:'round', lineJoin:'round' }) })
     ]);
     return { lyr, cGJ, clipBounds };
@@ -6423,18 +6457,21 @@ function _buildCmpContourLayers() {
   }
 
   // Phase 1: 等高線ライン即時表示
-  const { lyr: gA, cGJ: cGJA, clipBounds: cbA } = _genCmpLayer(_cmpStatsA, '#1565c0');
+  const { lyr: gA, cGJ: cGJA, clipBounds: cbA } = _genCmpLayer(_cmpStatsA, '#1565c0', 'cmpCtrPaneA');
   _applyCmpLayer(gA, cmpContourLayerA, '#1565c0', 'A', cmpSrcA, v => { cmpContourLayerA = v; });
 
-  const { lyr: gB, cGJ: cGJB, clipBounds: cbB } = _genCmpLayer(_cmpStatsB, '#e65100');
+  const { lyr: gB, cGJ: cGJB, clipBounds: cbB } = _genCmpLayer(_cmpStatsB, '#e65100', 'cmpCtrPaneB');
   _applyCmpLayer(gB, cmpContourLayerB, '#e65100', 'B', cmpSrcB, v => { cmpContourLayerB = v; });
+
+  // スワイプモード: ビルド直後にクリップを適用
+  if (_cmpViewMode === 'swipe') _updateCmpClip(_cmpSwipeX);
 
   // Phase 2: ラベルを50ms後に追加（ライン描画後にフレームを解放）
   if (_cmpContourPhase2Timer) clearTimeout(_cmpContourPhase2Timer);
   _cmpContourPhase2Timer = setTimeout(() => {
     _cmpContourPhase2Timer = null;
-    if (cGJA && cmpContourLayerA && cbA) _addCmpContourLabels(cGJA, cmpContourLayerA, curZ, cbA, '#1565c0');
-    if (cGJB && cmpContourLayerB && cbB) _addCmpContourLabels(cGJB, cmpContourLayerB, curZ, cbB, '#e65100');
+    if (cGJA && cmpContourLayerA && cbA) _addCmpContourLabels(cGJA, cmpContourLayerA, curZ, cbA, '#1565c0', 'cmpCtrPaneA');
+    if (cGJB && cmpContourLayerB && cbB) _addCmpContourLabels(cGJB, cmpContourLayerB, curZ, cbB, '#e65100', 'cmpCtrPaneB');
   }, 50);
 }
 
@@ -6451,12 +6488,16 @@ function _clearCmpContourLayers() {
   if (_cmpContourPhase2Timer) { clearTimeout(_cmpContourPhase2Timer); _cmpContourPhase2Timer = null; }
   if (cmpContourLayerA) { try { layerControl.removeLayer(cmpContourLayerA); map.removeLayer(cmpContourLayerA); } catch(e){} cmpContourLayerA = null; }
   if (cmpContourLayerB) { try { layerControl.removeLayer(cmpContourLayerB); map.removeLayer(cmpContourLayerB); } catch(e){} cmpContourLayerB = null; }
+  ['cmpCtrPaneA', 'cmpCtrPaneB'].forEach(pn => {
+    const p = map.getPane(pn);
+    if (p) p.querySelectorAll('svg').forEach(s => { s.style.clipPath = ''; });
+  });
   _cmpContourComputedBnds = null;
 }
 
-function _addCmpContourLabels(cGJ, targetGroup, curZ, clipBounds, color) {
+function _addCmpContourLabels(cGJ, targetGroup, curZ, clipBounds, color, paneName) {
   const STEP = 400;
-  const mkOpts = { interactive: false, keyboard: false };
+  const mkOpts = { interactive: false, keyboard: false, pane: paneName };
   const mkIcon = elev => L.divIcon({ className: 'contour-label',
     html: `<span style="color:${color};font-weight:600">${Math.round(elev)}</span>`, iconSize: null });
   // _onEdgeはクリップ済みビューポート範囲で判定（DEM全体範囲ではなく生成済み等高線範囲の端を除外）
