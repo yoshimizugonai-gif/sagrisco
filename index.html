@@ -1891,6 +1891,8 @@ let _contourSpatialIdx = null;  // 2D grid index for _sampleContourElev
 let _contourDemSt         = null;  // DEM stats for viewport-clipped contour generation
 let _contourComputedBounds = null; // L.LatLngBounds for which current contours are valid
 let _contourBuildTimer    = null;  // debounce timer for _buildContourLayers
+let _contourPhase2Timer  = null;  // timer for deferred label rendering (Phase 2)
+let _isZooming           = false; // true during Leaflet zoom animation
 let acPolyData       = {};
 let adPolyData       = {};
 let acLayerMap       = {};
@@ -3318,7 +3320,15 @@ async function runRealDEMAnalysis(setStep, colorScheme = null) {
 //  MAP SETUP
 // ================================================================
 const map = L.map('map', { center:[-15.0,-52.0], zoom:5, maxZoom:21, attributionControl:false, zoomControl:false });
-map.on('zoomend', () => _updateZoomVisibility());
+map.on('zoomstart', () => {
+  _isZooming = true;
+  if (contourMajorLayer  && map.hasLayer(contourMajorLayer))  map.removeLayer(contourMajorLayer);
+  if (contourMinorLayer  && map.hasLayer(contourMinorLayer))  map.removeLayer(contourMinorLayer);
+  if (contourLabelFullLayer  && map.hasLayer(contourLabelFullLayer))  map.removeLayer(contourLabelFullLayer);
+  if (contourLabelThinLayer  && map.hasLayer(contourLabelThinLayer))  map.removeLayer(contourLabelThinLayer);
+  if (contourLabelMinorLayer && map.hasLayer(contourLabelMinorLayer)) map.removeLayer(contourLabelMinorLayer);
+});
+map.on('zoomend', () => { _isZooming = false; _updateZoomVisibility(); });
 map.on('moveend', () => {
   if (map.getZoom() < 16 || !_contourDemSt) return;
   if (!_contourComputedBounds || !_contourComputedBounds.contains(map.getBounds()))
@@ -6061,13 +6071,13 @@ function computeAspect(grid, nR, nC) {
 let _contourMinorInt = 5;
 let _contourMajorInt = 20;
 
-// 等高線リビルドのdebounce（300ms — zoomend+moveendの重複発火を1回に集約）
+// 等高線リビルドのdebounce（500ms — zoomend+moveendの重複発火を1回に集約）
 function _scheduleContourRebuild() {
   if (_contourBuildTimer) clearTimeout(_contourBuildTimer);
   _contourBuildTimer = setTimeout(() => {
     _contourBuildTimer = null;
     if (_contourDemSt) _buildContourLayers(_contourDemSt);
-  }, 300);
+  }, 500);
 }
 
 // 等高線生成用グリッドを最大次元に制限（高解像度DEM対策）
@@ -6171,50 +6181,13 @@ function _buildContourLayers(st) {
     filter: f => f.properties.major,
     style: () => ({ color:'#976f0a', weight:1.3, opacity:0.6 })
   });
-  const lblsFull = [], lblsThin = [], lblsMinor = [];
-  const mkOpts = { interactive: false, keyboard: false };
-  const mkIcon = (elev, cls) => L.divIcon({ className: cls, html:`${Math.round(elev)}`, iconSize:null });
-  // 等間隔マルチラベル: 長い等高線にも複数ラベルを配置し、パン後もビューポート内に常に表示
-  const STEP_MAJOR = 400;  // 計曲線: 400座標ごとに1ラベル
-  const STEP_MINOR = 150;  // 主曲線: 150座標ごとに1ラベル
-  // d3.contoursはDEM境界で等高線を境界に沿って閉じるため、境界付近にラベルが集中する
-  // → DEM範囲の3%以内の座標はラベル配置から除外する
-  const _bW = (st._seLng - st._nwLng) * 0.03;
-  const _bH = (st._nwLat - st._seLat) * 0.03;
-  const _onEdge = ([lng, lat]) =>
-    lng <= st._nwLng + _bW || lng >= st._seLng - _bW ||
-    lat >= st._nwLat - _bH || lat <= st._seLat + _bH;
-  cGJ.features.forEach(f => {
-    const coords = f.geometry.coordinates;
-    if (coords.length < 2) return;
-    if (f.properties.major) {
-      // zoom≥17 (full): 等間隔で複数ラベル（境界付近はスキップ）
-      for (let i = Math.floor(STEP_MAJOR / 2); i < coords.length; i += STEP_MAJOR) {
-        const pt = coords[i];
-        if (_onEdge(pt)) continue;
-        lblsFull.push(L.marker([pt[1], pt[0]], { ...mkOpts, icon: mkIcon(f.properties.elevation, 'contour-label') }));
-      }
-      // zoom=16 (thin): 長い線のみ中間1点
-      if (coords.length >= 10) {
-        const mid = coords[Math.floor(coords.length / 2)];
-        if (!_onEdge(mid))
-          lblsThin.push(L.marker([mid[1], mid[0]], { ...mkOpts, icon: mkIcon(f.properties.elevation, 'contour-label') }));
-      }
-    } else {
-      // zoom≥19 (minor): 等間隔で複数ラベル（境界付近はスキップ、表示はzoom≥19のみ）
-      for (let i = Math.floor(STEP_MINOR / 2); i < coords.length; i += STEP_MINOR) {
-        const pt = coords[i];
-        if (_onEdge(pt)) continue;
-        lblsMinor.push(L.marker([pt[1], pt[0]], { ...mkOpts, icon: mkIcon(f.properties.elevation, 'contour-label contour-label-minor') }));
-      }
-    }
-  });
+  // 古いラベルを撤去（Phase 1ではラインのみ表示）
   if (contourLabelFullLayer)  { try { map.removeLayer(contourLabelFullLayer);  } catch(e){} }
   if (contourLabelThinLayer)  { try { map.removeLayer(contourLabelThinLayer);  } catch(e){} }
   if (contourLabelMinorLayer) { try { map.removeLayer(contourLabelMinorLayer); } catch(e){} }
-  contourLabelFullLayer  = L.layerGroup(lblsFull);
-  contourLabelThinLayer  = L.layerGroup(lblsThin);
-  contourLabelMinorLayer = L.layerGroup(lblsMinor);
+  contourLabelFullLayer = null;
+  contourLabelThinLayer = null;
+  contourLabelMinorLayer = null;
 
   // contourMajorLayer: 初回のみlayerControl登録（パン・ズームによるリビルドでは再登録しない）
   const firstMajor = !contourMajorLayer;
@@ -6256,10 +6229,54 @@ function _buildContourLayers(st) {
   }
   if (_legCnt) _legCnt.style.display = '';
 
+  // Phase 1: 等高線ライン（計曲線・主曲線）を即時表示
   _updateZoomVisibility();
+
+  // Phase 2: ラベルを50ms後に追加（描画フレームを1回解放してからラベル生成）
+  if (_contourPhase2Timer) clearTimeout(_contourPhase2Timer);
+  _contourPhase2Timer = setTimeout(() => {
+    _contourPhase2Timer = null;
+    const lblsFull = [], lblsThin = [], lblsMinor = [];
+    const mkOpts = { interactive: false, keyboard: false };
+    const mkIcon = (elev, cls) => L.divIcon({ className: cls, html:`${Math.round(elev)}`, iconSize:null });
+    const STEP_MAJOR = 400;
+    const STEP_MINOR = 150;
+    const _bW = (st._seLng - st._nwLng) * 0.03;
+    const _bH = (st._nwLat - st._seLat) * 0.03;
+    const _onEdge = ([lng, lat]) =>
+      lng <= st._nwLng + _bW || lng >= st._seLng - _bW ||
+      lat >= st._nwLat - _bH || lat <= st._seLat + _bH;
+    cGJ.features.forEach(f => {
+      const coords = f.geometry.coordinates;
+      if (coords.length < 2) return;
+      if (f.properties.major) {
+        for (let i = Math.floor(STEP_MAJOR / 2); i < coords.length; i += STEP_MAJOR) {
+          const pt = coords[i];
+          if (_onEdge(pt)) continue;
+          lblsFull.push(L.marker([pt[1], pt[0]], { ...mkOpts, icon: mkIcon(f.properties.elevation, 'contour-label') }));
+        }
+        if (coords.length >= 10) {
+          const mid = coords[Math.floor(coords.length / 2)];
+          if (!_onEdge(mid))
+            lblsThin.push(L.marker([mid[1], mid[0]], { ...mkOpts, icon: mkIcon(f.properties.elevation, 'contour-label') }));
+        }
+      } else {
+        for (let i = Math.floor(STEP_MINOR / 2); i < coords.length; i += STEP_MINOR) {
+          const pt = coords[i];
+          if (_onEdge(pt)) continue;
+          lblsMinor.push(L.marker([pt[1], pt[0]], { ...mkOpts, icon: mkIcon(f.properties.elevation, 'contour-label contour-label-minor') }));
+        }
+      }
+    });
+    contourLabelFullLayer  = L.layerGroup(lblsFull);
+    contourLabelThinLayer  = L.layerGroup(lblsThin);
+    contourLabelMinorLayer = L.layerGroup(lblsMinor);
+    _updateZoomVisibility();
+  }, 50);
 }
 
 function _updateZoomVisibility() {
+  if (_isZooming) return;
   const z = map.getZoom();
   const show = z >= 16;
   let _pendingRebuild = false;
