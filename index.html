@@ -1881,6 +1881,11 @@ let contourMinorLayer = null;   // 主曲線 (intermediate contours)
 let contourLabelFullLayer  = null; // 計曲線ラベル全表示（zoom≥17）
 let contourLabelThinLayer  = null; // 計曲線ラベル間引き（zoom=16）
 let contourLabelMinorLayer = null; // 主曲線ラベル（zoom≥19）
+let cmpContourLayerA        = null;  // 比較等高線 A（青）
+let cmpContourLayerB        = null;  // 比較等高線 B（橙）
+let _cmpContourBuildTimer   = null;  // debounce for comparison contour rebuild
+let _cmpContourPhase2Timer  = null;  // deferred label rendering for cmp contours
+let _cmpContourComputedBnds = null;  // bounds for which cmp contours are valid
 let step34Done       = false;
 let step6Done        = false;
 let _lastRpStep      = 1;
@@ -3327,12 +3332,22 @@ map.on('zoomstart', () => {
   if (contourLabelFullLayer  && map.hasLayer(contourLabelFullLayer))  map.removeLayer(contourLabelFullLayer);
   if (contourLabelThinLayer  && map.hasLayer(contourLabelThinLayer))  map.removeLayer(contourLabelThinLayer);
   if (contourLabelMinorLayer && map.hasLayer(contourLabelMinorLayer)) map.removeLayer(contourLabelMinorLayer);
+  if (cmpContourLayerA && map.hasLayer(cmpContourLayerA)) map.removeLayer(cmpContourLayerA);
+  if (cmpContourLayerB && map.hasLayer(cmpContourLayerB)) map.removeLayer(cmpContourLayerB);
+  if (_cmpContourPhase2Timer) { clearTimeout(_cmpContourPhase2Timer); _cmpContourPhase2Timer = null; }
 });
-map.on('zoomend', () => { _isZooming = false; _updateZoomVisibility(); });
+map.on('zoomend', () => {
+  _isZooming = false;
+  _updateZoomVisibility();
+  if (_cmpStatsA) _scheduleCmpContourRebuild();
+});
 map.on('moveend', () => {
-  if (map.getZoom() < 16 || !_contourDemSt) return;
-  if (!_contourComputedBounds || !_contourComputedBounds.contains(map.getBounds()))
+  const _z = map.getZoom(), _vb = map.getBounds();
+  if (_z < 16) return;
+  if (_contourDemSt && (!_contourComputedBounds || !_contourComputedBounds.contains(_vb)))
     _scheduleContourRebuild();
+  if (_cmpStatsA && (!_cmpContourComputedBnds || !_cmpContourComputedBnds.contains(_vb)))
+    _scheduleCmpContourRebuild();
 });
 L.control.attribution({ prefix: '<a href="https://leafletjs.com" title="A JavaScript library for interactive maps">Leaflet</a>' }).addTo(map);
 map.createPane('municBoundPane');
@@ -3507,6 +3522,7 @@ function _clearFluxoResults() {
 
 function _clearPesquisaResults() {
   _clearCmpSwipe();
+  _clearCmpContourLayers();
   clearAcadComparison();
   if (slopeRasterLayer) {
     try { layerControl.removeLayer(slopeRasterLayer); map.removeLayer(slopeRasterLayer); } catch(e){}
@@ -4741,6 +4757,7 @@ async function runComparisonAnalysis() {
     if (acadSec && !acadSec.classList.contains('open')) acadSec.classList.add('open');
     _syncAcadFromCmp();
     await runAcadComparison();
+    _buildCmpContourLayers();
     _showCmpRunBtn(false);
 
   } catch(err) {
@@ -6348,6 +6365,126 @@ function _updateZoomVisibility() {
     if (z >= 19 && !map.hasLayer(contourLabelMinorLayer)) contourLabelMinorLayer.addTo(map);
     if (z  < 19 &&  map.hasLayer(contourLabelMinorLayer)) map.removeLayer(contourLabelMinorLayer);
   }
+}
+
+// ── Pesquisa 比較等高線（2色オーバーレイ）──────────────────────────────────
+function _buildCmpContourLayers() {
+  if (!_cmpStatsA || !_cmpStatsB || map.getZoom() < 16) return;
+  const vb = map.getBounds();
+  const curZ = map.getZoom();
+  const zMajorInt = curZ >= 17 ? 10 : 20;
+  const zMinorInt = curZ >= 19 ? 2 : zMajorInt;
+  const maxDim = curZ >= 19 ? 600 : curZ >= 18 ? 500 : curZ >= 17 ? 400 : 300;
+  const latPad = (vb.getNorth() - vb.getSouth()) * 1.5;
+  const lngPad = (vb.getEast()  - vb.getWest())  * 1.5;
+  _cmpContourComputedBnds = L.latLngBounds([
+    [vb.getSouth() - latPad, vb.getWest() - lngPad],
+    [vb.getNorth() + latPad, vb.getEast() + lngPad]
+  ]);
+
+  function _genCmpLayer(statsObj, lineColor) {
+    const nLat = Math.min(vb.getNorth() + latPad, statsObj._nwLat);
+    const sLat = Math.max(vb.getSouth() - latPad, statsObj._seLat);
+    const wLng = Math.max(vb.getWest()  - lngPad, statsObj._nwLng);
+    const eLng = Math.min(vb.getEast()  + lngPad, statsObj._seLng);
+    if (nLat <= sLat || wLng >= eLng) return { lyr: null, cGJ: null, clipBounds: null };
+    let clip = _clipContourGrid(statsObj, nLat, wLng, sLat, eLng);
+    clip = _downsampleForContour(clip, maxDim);
+    const cGJ = genContourLinesGeoJSON(clip.grid, clip.slope, clip.totW, clip.totH,
+      clip.nwLat, clip.nwLng, clip.seLat, clip.seLng, statsObj.cellM || 30, zMinorInt, zMajorInt);
+    if (!cGJ) return { lyr: null, cGJ: null, clipBounds: null };
+    const clipBounds = { nLat: clip.nwLat, wLng: clip.nwLng, sLat: clip.seLat, eLng: clip.seLng };
+    const lyr = L.layerGroup([
+      L.geoJSON(cGJ, { filter: f => f.properties.major,
+        style: () => ({ color:'#fff', weight:2.2, opacity:0.15, lineCap:'round', lineJoin:'round' }) }),
+      L.geoJSON(cGJ, { filter: f => f.properties.major,
+        style: () => ({ color:lineColor, weight:1.2, opacity:0.55, lineCap:'round', lineJoin:'round' }) }),
+      L.geoJSON(cGJ, { filter: f => !f.properties.major,
+        style: () => ({ color:lineColor, weight:0.6, opacity:0.35, lineCap:'round', lineJoin:'round' }) })
+    ]);
+    return { lyr, cGJ, clipBounds };
+  }
+
+  function _applyCmpLayer(lyr, existingVar, lineColor, labelKey, srcKey, varSetter) {
+    if (!lyr) return;
+    const isFirst = !existingVar;
+    if (isFirst) {
+      existingVar = L.layerGroup();
+      const lbl = (DEM_META[srcKey] || {}).name || srcKey;
+      layerControl.addOverlay(existingVar,
+        `<i class="fa fa-minus fa-xs" style="color:${lineColor}"></i>&nbsp;Curvas ${labelKey}` +
+        `<div style="font-size:10px;color:#546e7a;padding-left:14px;line-height:1.4">${lbl}</div>`);
+      varSetter(existingVar);
+    } else {
+      existingVar.clearLayers();
+    }
+    lyr.getLayers().forEach(l => existingVar.addLayer(l));
+    if (!map.hasLayer(existingVar)) existingVar.addTo(map);
+  }
+
+  // Phase 1: 等高線ライン即時表示
+  const { lyr: gA, cGJ: cGJA, clipBounds: cbA } = _genCmpLayer(_cmpStatsA, '#1565c0');
+  _applyCmpLayer(gA, cmpContourLayerA, '#1565c0', 'A', cmpSrcA, v => { cmpContourLayerA = v; });
+
+  const { lyr: gB, cGJ: cGJB, clipBounds: cbB } = _genCmpLayer(_cmpStatsB, '#e65100');
+  _applyCmpLayer(gB, cmpContourLayerB, '#e65100', 'B', cmpSrcB, v => { cmpContourLayerB = v; });
+
+  // Phase 2: ラベルを50ms後に追加（ライン描画後にフレームを解放）
+  if (_cmpContourPhase2Timer) clearTimeout(_cmpContourPhase2Timer);
+  _cmpContourPhase2Timer = setTimeout(() => {
+    _cmpContourPhase2Timer = null;
+    if (cGJA && cmpContourLayerA && cbA) _addCmpContourLabels(cGJA, cmpContourLayerA, curZ, cbA, '#1565c0');
+    if (cGJB && cmpContourLayerB && cbB) _addCmpContourLabels(cGJB, cmpContourLayerB, curZ, cbB, '#e65100');
+  }, 50);
+}
+
+function _scheduleCmpContourRebuild() {
+  if (_cmpContourBuildTimer) clearTimeout(_cmpContourBuildTimer);
+  _cmpContourBuildTimer = setTimeout(() => {
+    _cmpContourBuildTimer = null;
+    _buildCmpContourLayers();
+  }, 500);
+}
+
+function _clearCmpContourLayers() {
+  if (_cmpContourBuildTimer)  { clearTimeout(_cmpContourBuildTimer);  _cmpContourBuildTimer  = null; }
+  if (_cmpContourPhase2Timer) { clearTimeout(_cmpContourPhase2Timer); _cmpContourPhase2Timer = null; }
+  if (cmpContourLayerA) { try { layerControl.removeLayer(cmpContourLayerA); map.removeLayer(cmpContourLayerA); } catch(e){} cmpContourLayerA = null; }
+  if (cmpContourLayerB) { try { layerControl.removeLayer(cmpContourLayerB); map.removeLayer(cmpContourLayerB); } catch(e){} cmpContourLayerB = null; }
+  _cmpContourComputedBnds = null;
+}
+
+function _addCmpContourLabels(cGJ, targetGroup, curZ, clipBounds, color) {
+  const STEP = 400;
+  const mkOpts = { interactive: false, keyboard: false };
+  const mkIcon = elev => L.divIcon({ className: 'contour-label',
+    html: `<span style="color:${color};font-weight:600">${Math.round(elev)}</span>`, iconSize: null });
+  // _onEdgeはクリップ済みビューポート範囲で判定（DEM全体範囲ではなく生成済み等高線範囲の端を除外）
+  const _bW = (clipBounds.eLng - clipBounds.wLng) * 0.03;
+  const _bH = (clipBounds.nLat - clipBounds.sLat) * 0.03;
+  const _onEdge = ([lng, lat]) =>
+    lng <= clipBounds.wLng + _bW || lng >= clipBounds.eLng - _bW ||
+    lat >= clipBounds.nLat - _bH || lat <= clipBounds.sLat + _bH;
+  cGJ.features.forEach(f => {
+    if (!f.properties.major) return;
+    const coords = f.geometry.coordinates;
+    if (coords.length < 2) return;
+    if (curZ >= 17) {
+      // 短い線でも中点から開始（STEP/2 未満の場合は中点にフォールバック）
+      const startIdx = Math.min(Math.floor(STEP / 2), Math.floor(coords.length / 2));
+      for (let i = startIdx; i < coords.length; i += STEP) {
+        const pt = coords[i];
+        if (_onEdge(pt)) continue;
+        targetGroup.addLayer(L.marker([pt[1], pt[0]], { ...mkOpts, icon: mkIcon(f.properties.elevation) }));
+      }
+    } else {
+      if (coords.length >= 10) {
+        const mid = coords[Math.floor(coords.length / 2)];
+        if (!_onEdge(mid))
+          targetGroup.addLayer(L.marker([mid[1], mid[0]], { ...mkOpts, icon: mkIcon(f.properties.elevation) }));
+      }
+    }
+  });
 }
 
 function genContourLinesGeoJSON(elevGrid, slopeArr, totW, totH, nwLat, nwLng, seLat, seLng, cellM, minorIntParam, majorIntParam) {
