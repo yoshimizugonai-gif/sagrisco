@@ -3972,7 +3972,8 @@ function _updateMunic821Info(ibgeCode) {
 let _areaUrbana821GeoJSON = null;
 let _urbanFilterActive    = false;
 let _exposureFilterActive = false;
-let _hiddenBldgLayers    = []; // sublayers removed from buildingLayer when exposure filter is active
+let _hiddenBldgLayers    = [];
+let _crossFilterSel      = null; // 'dentro|alert' etc., null = no cross-filter
 let _rtcPriorityIds = []; // zone IDs that are exposed or nearby (for Revisão counter)
 
 async function _loadAreaUrbana821All() {
@@ -10931,6 +10932,7 @@ function buildExclusionList(slopeData) {
   // Reset both filter states when a new zone set is loaded
   _urbanFilterActive = false;
   _exposureFilterActive = false;
+  _clearCrossFilter();
   _hideResultadoCard();
   const _rh = document.getElementById('urbana-cross-hint');
   if (_rh) _rh.style.display = 'none';
@@ -11791,6 +11793,60 @@ function _refreshExposureBar() {
   _showResultadoCard(nExposed, nNearby, nClear, allIds, _urbanFilterActive, _exposureSourceLabel);
 }
 
+// ── Cross-table cell click filter ─────────────────────────────────────────────
+function _setCrossFilter(urbana, exp) {
+  const key = `${urbana}|${exp}`;
+  if (_crossFilterSel === key) {
+    // same cell → toggle off (clear filter)
+    _crossFilterSel = null;
+  } else {
+    _crossFilterSel = key;
+  }
+  // Apply data-crossHidden to every zone block
+  document.querySelectorAll('#excl-zone-list .h-zone-block').forEach(block => {
+    const id = block.id.replace('exclblock-', '');
+    const isUrban   = block.dataset.urbanaHidden !== '1';
+    const expResult = exposureResults[id];
+    const isAlert   = expResult === 'exposed' || expResult === 'nearby';
+    const isClear   = expResult === 'clear';
+    let show = true;
+    if (_crossFilterSel) {
+      const [u, e] = _crossFilterSel.split('|');
+      // Fora zones with no exposure result are excluded from cross-table totals (o_none).
+      if (!isUrban && expResult === undefined) {
+        show = false;
+      } else {
+        if (u === 'dentro') show = show && isUrban;
+        else if (u === 'fora') show = show && !isUrban;
+        if (e === 'alert') show = show && isAlert;
+        else if (e === 'clear') show = show && isClear;
+      }
+    }
+    block.dataset.crossHidden = show ? '' : '1';
+  });
+  _updateCrossFilterHighlight();
+  _zoneCurrentPage = 1;
+  _applyZoneListFilter();
+  const first = Array.from(document.querySelectorAll('#excl-zone-list .h-zone-block'))
+    .find(b => b.style.display !== 'none');
+  if (first) first.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function _updateCrossFilterHighlight() {
+  document.querySelectorAll('#resultado-triagem-card [data-cfk]').forEach(el => {
+    const active = _crossFilterSel === el.dataset.cfk;
+    el.style.background   = active ? 'rgba(255,255,255,.14)' : '';
+    el.style.outline      = active ? '1px solid rgba(255,255,255,.35)' : '';
+    el.style.borderRadius = active ? '3px' : '';
+  });
+}
+
+function _clearCrossFilter() {
+  _crossFilterSel = null;
+  document.querySelectorAll('#excl-zone-list .h-zone-block').forEach(b => { b.dataset.crossHidden = ''; });
+  _updateCrossFilterHighlight();
+}
+
 // ── Resultado da Triagem card ─────────────────────────────────────────────────
 function _showResultadoCard(nExposed, nNearby, nClear, zoneIds, urbanaActive, sourceLabel) {
   // Remove any existing bar or card
@@ -11835,39 +11891,50 @@ function _showResultadoCard(nExposed, nNearby, nClear, zoneIds, urbanaActive, so
     const foraHasData = o_exp > 0 || o_clr > 0;
     const t_exp = u_exp + (foraHasData ? o_exp : 0);
     const t_clr = u_clr + (foraHasData ? o_clr : 0);
-    const nIn   = zoneIds.length;
-    const nTot  = nIn + (foraHasData ? nOut - o_none : 0);
+    const nIn   = u_exp + u_clr;
+    const nTot  = nIn + (foraHasData ? o_exp + o_clr : 0);
+    const nFara = foraHasData ? nOut - o_none : 0;
     const _SEP  = 'border-left:1px solid rgba(255,255,255,.1)';
-    const _cell = (urbVal, oVal, totVal, color) =>
-      `<td style="padding:3px 6px;text-align:center;font-weight:700;color:${color}">${urbVal}</td>` +
-      `<td style="padding:3px 6px;text-align:center;color:${foraHasData ? color : '#455a64'}">${!foraHasData ? '—' : oVal}</td>` +
-      `<td style="padding:3px 6px;text-align:center;font-weight:700;color:${color};${_SEP}">${!foraHasData ? urbVal : totVal}</td>`;
+    // Clickable cell: data-cfk stores the filter key for highlight lookup
+    const _cs = (u, e, val, color, extra='') =>
+      `<td data-cfk="${u}|${e}" onclick="_setCrossFilter('${u}','${e}')"
+          style="padding:3px 6px;text-align:center;font-weight:700;color:${color};cursor:pointer${extra}">${val}</td>`;
+    // Fora cells: not clickable when no Fora data
+    const _fc = (e, val, color, extra='') => foraHasData
+      ? _cs('fora', e, val, color, extra)
+      : `<td style="padding:3px 6px;text-align:center;color:#455a64">—</td>`;
     crossTableHtml = `
     <div style="padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.06)">
-      <div style="font-size:10px;color:#546e7a;letter-spacing:.04em;margin-bottom:5px">Área Urbana × Exposição</div>
+      <div style="font-size:10px;color:#546e7a;letter-spacing:.04em;margin-bottom:5px">Área Urbana × Exposição
+        <span style="float:right;font-size:9px;color:#455a64;font-style:italic">clique para filtrar</span>
+      </div>
       <table style="width:100%;border-collapse:collapse;font-size:11px">
         <thead>
           <tr style="border-bottom:1px solid rgba(255,255,255,.08)">
             <td style="padding:3px 6px"></td>
-            <th style="padding:3px 6px;color:#ffb300;font-weight:600;text-align:center">🏙 Dentro<br><span style="font-size:9px;font-weight:400">(${nIn})</span></th>
-            <th style="padding:3px 6px;color:#546e7a;font-weight:600;text-align:center">— Fora<br><span style="font-size:9px;font-weight:400">(${nOut})</span></th>
-            <th style="padding:3px 6px;color:#78909c;font-weight:600;text-align:center;${_SEP}">Total<br><span style="font-size:9px;font-weight:400">(${nTot})</span></th>
+            ${_cs('dentro','all','🏙 Dentro','#ffb300',';font-weight:600;text-align:center')}
+            ${_fc('all','— Fora','#546e7a',';font-weight:600;text-align:center')}
+            ${_cs('all','all','Total','#78909c',`;font-weight:600;text-align:center;${_SEP}`)}
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td style="padding:3px 6px;color:#ef5350">🔴 Expostos</td>
-            ${_cell(u_exp, o_exp, t_exp, '#ef5350')}
+            ${_cs('all','alert','🔴 Expostos','#ef5350',';font-weight:600;text-align:left')}
+            ${_cs('dentro','alert',u_exp,'#ef5350')}
+            ${_fc('alert',o_exp,'#ef5350')}
+            ${_cs('all','alert',t_exp,'#ef5350',`;${_SEP}`)}
           </tr>
           <tr>
-            <td style="padding:3px 6px;color:#66bb6a">✓ Seguros</td>
-            ${_cell(u_clr, o_clr, t_clr, '#66bb6a')}
+            ${_cs('all','clear','✓ Seguros','#66bb6a',';font-weight:600;text-align:left')}
+            ${_cs('dentro','clear',u_clr,'#66bb6a')}
+            ${_fc('clear',o_clr,'#66bb6a')}
+            ${_cs('all','clear',t_clr,'#66bb6a',`;${_SEP}`)}
           </tr>
           <tr style="border-top:1px solid rgba(255,255,255,.1)">
             <td style="padding:3px 6px;color:#78909c;font-weight:600">Total</td>
-            <td style="padding:3px 6px;text-align:center;font-weight:700;color:#78909c">${nIn}</td>
-            <td style="padding:3px 6px;text-align:center;font-weight:700;color:${foraHasData ? '#78909c' : '#455a64'}">${!foraHasData ? '—' : nOut - o_none}</td>
-            <td style="padding:3px 6px;text-align:center;font-weight:700;color:#78909c;${_SEP}">${nTot}</td>
+            ${_cs('dentro','all',nIn,'#78909c')}
+            ${_fc('all',nFara,'#78909c')}
+            ${_cs('all','all',nTot,'#78909c',`;${_SEP}`)}
           </tr>
           ${o_none > 0 ? `<tr><td style="padding:3px 6px;color:#455a64;font-size:10px" colspan="4">※ Fora: ${o_none} setores não analisados</td></tr>` : ''}
         </tbody>
@@ -11896,13 +11963,13 @@ function _showResultadoCard(nExposed, nNearby, nClear, zoneIds, urbanaActive, so
   card.id = 'resultado-triagem-card';
   card.style.cssText = 'border:1px solid rgba(255,255,255,.1);border-radius:6px;margin-bottom:8px;overflow:hidden;';
   card.innerHTML = `
-    <div style="font-size:10px;color:#546e7a;text-transform:uppercase;letter-spacing:.06em;padding:6px 10px;background:rgba(255,255,255,.04);border-bottom:1px solid rgba(255,255,255,.06)">
+    ${!urbanaActive ? `<div style="font-size:10px;color:#546e7a;text-transform:uppercase;letter-spacing:.06em;padding:6px 10px;background:rgba(255,255,255,.04);border-bottom:1px solid rgba(255,255,255,.06)">
       Resultado da Triagem &middot; ${sourceLabel}
     </div>
     <div style="padding:8px 10px;font-size:11px;color:#90a4ae;border-bottom:1px solid rgba(255,255,255,.06)">
       ${contextLine}
-    </div>
-    <div style="padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.06)">
+    </div>` : ''}
+    ${!urbanaActive ? `<div style="padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.06)">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
         <span style="font-size:13px">🔴</span>
         <span style="font-size:18px;font-weight:700;color:#ef5350;min-width:28px;text-align:right">${nRisk}</span>
@@ -11920,11 +11987,11 @@ function _showResultadoCard(nExposed, nNearby, nClear, zoneIds, urbanaActive, so
         <span style="font-size:18px;font-weight:700;color:#66bb6a;min-width:28px;text-align:right">${nClear}</span>
         <span style="font-size:11px;color:#66bb6a;font-weight:600">Seguros</span>
       </div>
-    </div>
+    </div>` : ''}
     ${crossTableHtml}
-    <div style="padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.06)">
+    ${!urbanaActive ? `<div style="padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.06)">
       <div style="display:flex;gap:6px">${actionBtns}</div>
-    </div>
+    </div>` : ''}
     <div style="padding:8px 10px">
       <div style="font-size:10px;color:#78909c;margin-bottom:4px">${revisaoLabel}</div>
       <div style="background:rgba(255,255,255,.08);height:4px;border-radius:2px">
@@ -12187,6 +12254,7 @@ async function runExposureFromMSBuildings() {
   // Toggle off: clear exposure map filter and restore button
   if (_exposureFilterActive) {
     _exposureFilterActive = false;
+    _clearCrossFilter();
     document.querySelectorAll('#excl-zone-list .h-zone-block').forEach(b => { b.dataset.expHidden = ''; });
     const _btn = document.getElementById('btn-ms-buildings');
     if (_btn) {
@@ -12483,6 +12551,7 @@ async function runUrbanaFilter() {
   // Toggle off
   if (_urbanFilterActive) {
     _urbanFilterActive = false;
+    _clearCrossFilter();
     document.querySelectorAll('#excl-zone-list .h-zone-block').forEach(b => {
       b.dataset.urbanaHidden = '';
       // Zones excluded from exposure analysis due to urbana filter have expHidden='1'
@@ -12823,8 +12892,12 @@ function _applyZoneListFilter() {
   const allBlocks = Array.from(document.querySelectorAll('#excl-zone-list .h-zone-block'));
   const textLow   = _zoneFilterText.toLowerCase();
   const passing   = allBlocks.filter(b => {
-    if (b.dataset.expHidden    === '1') return false;
-    if (b.dataset.urbanaHidden === '1') return false;
+    if (b.dataset.crossHidden  === '1') return false;
+    if (!_crossFilterSel) {
+      // Cross-filter already encodes Dentro/Fora+alert/clear into crossHidden; bypass here.
+      if (b.dataset.expHidden    === '1') return false;
+      if (b.dataset.urbanaHidden === '1') return false;
+    }
     if (_zoneFilterStatus !== 'all' && !b.classList.contains(`status-${_zoneFilterStatus}`)) return false;
     if (textLow && !(b.dataset.zoneLabel || '').toLowerCase().includes(textLow)) return false;
     return true;
