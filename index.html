@@ -237,8 +237,8 @@ html,body{height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,sans-seri
 .exp-filter-btn.efb-clear.active{border-color:rgba(76,175,80,.4);background:rgba(76,175,80,.1);color:#66bb6a}
 /* Exposure badges */
 .exp-badge{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;border-radius:50%;font-size:11px;flex-shrink:0;margin-left:4px;cursor:help;vertical-align:middle;font-weight:700;line-height:1}
-.exp-exposed{background:rgba(239,83,80,.45);color:#ffcdd2;border:2px solid #ef5350}
-.exp-nearby{background:rgba(255,167,38,.4);color:#fff8e1;border:2px solid #ffa726}
+.urbana-badge{display:inline-flex;align-items:center;justify-content:center;height:14px;padding:0 4px;border-radius:3px;font-size:9px;flex-shrink:0;margin-left:3px;cursor:help;vertical-align:middle;font-weight:700;background:rgba(255,179,0,.15);color:#ffb300;border:1px solid rgba(255,179,0,.35)}
+.exp-exposed,.exp-nearby{background:rgba(239,83,80,.45);color:#ffcdd2;border:2px solid #ef5350}
 .exp-clear{background:rgba(76,175,80,.35);color:#c8e6c9;border:2px solid #66bb6a}
 .exp-pending{background:rgba(255,255,255,.08);color:#607d8b;border:1px dashed rgba(255,255,255,.25)}
 .acc-body{display:none;padding:0 14px 12px}
@@ -250,13 +250,13 @@ html,body{height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,sans-seri
 .src-group{margin-bottom:8px}
 .src-group-ttl{font-size:11px;color:#37474f;text-transform:uppercase;letter-spacing:1px;
   margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid rgba(255,255,255,.04)}
-.radio-item{display:flex;align-items:flex-start;gap:8px;padding:7px 0;
+.radio-item{display:flex;align-items:flex-start;gap:8px;padding:5px 0;
   border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer}
 .radio-item:last-child{border-bottom:none}
-.radio-item input[type=radio]{accent-color:#1565c0;margin-top:3px;flex-shrink:0;cursor:pointer}
+.radio-item input[type=radio]{accent-color:#1565c0;margin-top:2px;flex-shrink:0;cursor:pointer}
 .radio-label{flex:1}
-.radio-name{font-size:13px;color:#b0bec5;font-weight:500}
-.radio-meta{font-size:11px;color:#455a64;line-height:1.5;margin-top:1px}
+.radio-name{font-size:11px;color:#b0bec5;font-weight:400}
+.radio-meta{font-size:10px;color:#455a64;line-height:1.5;margin-top:1px}
 .radio-item.selected .radio-name{color:#42a5f5}
 .radio-item.selected .radio-meta{color:#37474f}
 .dem-info-btn{margin-left:auto;flex-shrink:0;background:none;border:none;color:#37474f;
@@ -280,6 +280,9 @@ html,body{height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,sans-seri
 .import-lbl{font-size:12px;color:#546e7a}
 .import-lbl i{display:block;font-size:18px;margin-bottom:4px;color:#37474f}
 .import-lbl.has-file i{color:#4caf50}
+#local-dem-import-box{padding:5px 8px;margin-top:3px;border-radius:4px}
+#local-dem-import-lbl{font-size:11px}
+#local-dem-import-lbl i{display:inline;font-size:12px;margin-bottom:0;margin-right:4px}
 #file-input{display:none}
 
 /* Toggle switches */
@@ -293,9 +296,9 @@ html,body{height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,sans-seri
 .toggle input:checked + .toggle-slider:before{transform:translateX(16px);background:#fff}
 
 /* AOI controls */
-.aoi-btns{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px}
+.aoi-btns{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:8px}
 .aoi-btn{flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);
-  color:#90a4ae;border-radius:5px;padding:7px 5px;font-size:12px;font-weight:600;cursor:pointer;
+  color:#90a4ae;border-radius:4px;padding:4px 4px;font-size:11px;font-weight:600;cursor:pointer;
   text-align:center;transition:all .2s}
 .aoi-btn:hover{background:rgba(21,101,192,.2);border-color:rgba(21,101,192,.4);color:#42a5f5}
 .aoi-btn.active{background:rgba(21,101,192,.25);border-color:#1565c0;color:#42a5f5}
@@ -515,6 +518,23 @@ html,body{height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,sans-seri
 .h-zone-block.status-excluded .h-zone-label span{color:#546e7a;text-decoration:line-through}
 .h-zone-block.status-excluded{opacity:0.55}
 .h-zone-block.status-review .h-zone-label span{color:#ffa726}
+/* Zone list filter bar */
+.zone-filter-bar{padding:6px 0 4px;margin-bottom:2px}
+.zone-filter-row{display:flex;gap:3px;margin-bottom:4px}
+.zfb{flex:1;padding:3px 4px;font-size:10.5px;border-radius:3px;border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.04);color:#546e7a;cursor:pointer;text-align:center;min-width:0;line-height:1.4}
+.zfb:hover{background:rgba(255,255,255,.10);color:#90a4ae}
+.zfb.zfb-active{border-color:rgba(66,165,245,.55);background:rgba(66,165,245,.15);color:#42a5f5}
+#zone-search-input{width:100%;box-sizing:border-box;padding:3px 7px;font-size:11px;
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:3px;
+  color:#cfd8dc;outline:none;margin-bottom:4px}
+#zone-search-input:focus{border-color:rgba(66,165,245,.55)}
+#zone-search-input::placeholder{color:#455a64}
+.zone-pg-bar{display:flex;align-items:center;justify-content:space-between;padding:2px 0;font-size:11px;color:#546e7a}
+.zone-pg-btn{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);
+  border-radius:3px;color:#78909c;font-size:11px;padding:2px 8px;cursor:pointer}
+.zone-pg-btn:hover:not([disabled]){background:rgba(255,255,255,.12);color:#90a4ae}
+.zone-pg-btn[disabled]{opacity:0.35;cursor:default}
 .ac-chip{display:inline-block;background:rgba(211,47,47,.15);border:1px solid rgba(211,47,47,.3);
   color:#ef5350;font-size:11px;font-weight:700;padding:2px 6px;border-radius:3px;margin-right:4px}
 .ac-summary{background:rgba(211,47,47,.06);border:1px solid rgba(211,47,47,.18);
@@ -623,7 +643,7 @@ body.fs-large #tb-font-btn{background:rgba(66,165,245,.18);border-color:rgba(66,
 .lp-step-lbl{font-size:10px!important}
 
 /* Case A: 11px → 13px */
-.zone-zoom-btn,.edit-dd-item,.radio-meta,.map-leg-hd-label,.map-leg-toggle,
+.zone-zoom-btn,.edit-dd-item,.radio-name,.radio-meta,.map-leg-hd-label,.map-leg-toggle,
 .map-leg-item,.tb-user-r,.stage-tab .st-num,.module-tab .mt-num,
 .carta-tab,.carta-edit-btn,.carta-type-header,.carta-type-btn,
 .carta-type-btn .ctb-label,.carta-type-btn .ctb-icon,.lp-tab,
@@ -641,7 +661,7 @@ body.fs-large #tb-font-btn{background:rgba(66,165,245,.18);border-color:rgba(66,
 .stage-tab,.module-tab,.tb-munic,.tb-user-n{font-size:14px!important}
 
 /* Case A: 13px → 15px (painéis e modais) */
-.toggle-row,.radio-name,.proc-step,.proc-pct,.lock-msg,
+.toggle-row,.proc-step,.proc-pct,.lock-msg,
 .map-search-ctrl input,.edit-toolbar-zone,.lpop h4{font-size:15px!important}
 .lp-tab i{font-size:15px!important}
 
@@ -659,7 +679,7 @@ body.fs-large .map-leg-sec-title,body.fs-large .ficha-title,
 body.fs-large .hazard-badge,body.fs-large .carta-type-btn .ctb-desc{font-size:14px!important}
 body.fs-large .lp-step-lbl{font-size:12px!important}
 
-body.fs-large .zone-zoom-btn,body.fs-large .edit-dd-item,body.fs-large .radio-meta,
+body.fs-large .zone-zoom-btn,body.fs-large .edit-dd-item,body.fs-large .radio-name,body.fs-large .radio-meta,
 body.fs-large .map-leg-hd-label,body.fs-large .map-leg-toggle,body.fs-large .map-leg-item,
 body.fs-large .tb-user-r,body.fs-large .stage-tab .st-num,body.fs-large .module-tab .mt-num,
 body.fs-large .carta-tab,body.fs-large .carta-edit-btn,body.fs-large .carta-type-header,
@@ -684,7 +704,7 @@ body.fs-large .exp-filter-btn{font-size:16px!important}
 body.fs-large .stage-tab,body.fs-large .module-tab,
 body.fs-large .tb-munic,body.fs-large .tb-user-n{font-size:16px!important}
 
-body.fs-large .toggle-row,body.fs-large .radio-name,body.fs-large .proc-step,
+body.fs-large .toggle-row,body.fs-large .proc-step,
 body.fs-large .proc-pct,body.fs-large .lock-msg,body.fs-large .map-search-ctrl input,
 body.fs-large .edit-toolbar-zone,body.fs-large .lpop h4{font-size:17px!important}
 body.fs-large .lp-tab i{font-size:17px!important}
@@ -836,16 +856,16 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
         <div class="acc-body">
           <div class="aoi-btns">
             <button class="aoi-btn" id="aoi-btn-ext" onclick="setAoiMode('ext')">
-              <i class="fa fa-expand-arrows-alt fa-xs"></i><br>Extensão<br>do mapa
+              <i class="fa fa-expand-arrows-alt fa-xs"></i>&nbsp;Extensão do mapa
             </button>
             <button class="aoi-btn active" id="aoi-btn-munic" onclick="setAoiMode('munic')">
-              <i class="fa fa-city fa-xs"></i><br>Limite Municipal
+              <i class="fa fa-city fa-xs"></i>&nbsp;Limite Municipal
             </button>
             <button class="aoi-btn" id="aoi-btn-draw" onclick="setAoiMode('draw')">
-              <i class="fa fa-pencil-alt fa-xs"></i><br>Desenhar AOI
+              <i class="fa fa-pencil-alt fa-xs"></i>&nbsp;Desenhar AOI
             </button>
             <button class="aoi-btn" id="aoi-btn-import" onclick="setAoiMode('import')">
-              <i class="fa fa-file-import fa-xs"></i><br>Importar
+              <i class="fa fa-file-import fa-xs"></i>&nbsp;Importar
             </button>
           </div>
           <input type="file" id="aoi-file" accept=".geojson,.json,.kml,.kmz" style="display:none" onchange="onAoiImport(event)">
@@ -867,6 +887,8 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
             </button>
           </div>
 
+
+
           <div class="aoi-stat" id="aoi-stat">
             <div class="aoi-stat-row">
               <span class="aoi-stat-lbl">Município</span>
@@ -881,6 +903,7 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
               <span class="aoi-stat-val" id="aoi-status" style="color:#546e7a">Não definida</span>
             </div>
           </div>
+
           <!-- 821 priority municipality info panel -->
           <div id="munic-821-info" style="display:none;margin-top:6px;border-top:1px solid #263545;padding-top:6px">
             <div style="font-size:10px;color:#78909c;margin-bottom:5px;letter-spacing:.3px">
@@ -1028,9 +1051,7 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
             <label class="radio-item" onclick="selectDEM('local')">
               <input type="radio" name="dem-src" value="local">
               <div class="radio-label">
-                <div class="radio-name">GeoTIFF / DTM Local
-                  <span class="resolution-badge res-paid">LOCAL</span>
-                </div>
+                <div class="radio-name">GeoTIFF / DTM Local</div>
               </div>
               <button class="dem-info-btn" onclick="showDEMInfo('local',this,event)" title="Detalhes"><i class="fa fa-info-circle"></i></button>
             </label>
@@ -1424,7 +1445,7 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
           <div class="acc-title" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
             <span><i class="fa fa-vector-square fa-xs"></i> AC / AD Delimitadas</span>
             <button onclick="toggleInfoPopup('ac-info',this);event.stopPropagation()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:50%;width:16px;height:16px;font-size:10px;color:#90a4ae;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center;padding:0;flex-shrink:0" title="Detalhes"><i class="fa fa-info fa-xs"></i></button>
-            <span class="acc-badge" id="badge-s2-ac" style="background:rgba(255,255,255,.07);color:#546e7a">Aguardando</span>
+            <span class="acc-badge acc-badge-ok" id="badge-s2-ac" style="display:none"></span>
           </div>
           <i class="fa fa-chevron-down acc-arrow"></i>
         </div>
@@ -1442,20 +1463,67 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
 
       <!-- 2.5 Exclusão por Exposição -->
       <div class="acc-section" id="acc-s2-excl" style="display:none">
-        <div class="acc-head" onclick="toggleAcc('acc-s2-excl')">
-          <div class="acc-title">
-            <i class="fa fa-eye-slash fa-xs"></i> Triagem de Setores
+        <div class="acc-head" onclick="toggleAcc('acc-s2-excl');document.getElementById('excl-info').style.display='none'">
+          <div class="acc-title" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+            <span><i class="fa fa-eye-slash fa-xs"></i> Triagem de Setores</span>
+            <button onclick="toggleInfoPopup('excl-info',this);event.stopPropagation()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:50%;width:16px;height:16px;font-size:10px;color:#90a4ae;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center;padding:0;flex-shrink:0" title="Detalhes"><i class="fa fa-info fa-xs"></i></button>
             <span class="acc-badge" id="badge-s2-excl" style="background:rgba(255,255,255,.07);color:#546e7a">Aguardando</span>
           </div>
           <i class="fa fa-chevron-down acc-arrow"></i>
         </div>
+        <div id="excl-info" style="display:none;font-size:11px;color:#78909c;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:4px;padding:6px 8px;margin:0;line-height:1.6">
+          Zonas sem bens expostos a jusante (edificações, estradas, infraestrutura) podem ser excluídas do mapeamento de perigo.
+        </div>
         <div class="acc-body">
-          <div style="font-size:12px;color:#78909c;line-height:1.6;margin-bottom:8px">
-            Zonas sem bens expostos a jusante (edificações, estradas, infraestrutura) podem ser excluídas do mapeamento de perigo.
+          <div id="refinar-setores-wrap" style="display:none;margin-bottom:8px;border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:8px 10px">
+            <div style="font-size:10px;color:#546e7a;letter-spacing:.4px;text-transform:uppercase;margin-bottom:8px">Refinar Setores</div>
+
+            <!-- ① Exposição de Edificações -->
+            <div id="btn-ms-buildings-row">
+              <div style="display:flex;align-items:center;gap:5px;margin-bottom:4px">
+                <span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:rgba(255,255,255,.08);font-size:9px;font-weight:700;color:#78909c;flex-shrink:0">①</span>
+                <span style="font-size:10px;color:#78909c">Exposição de Edificações</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:4px">
+                <button id="btn-ms-buildings" onclick="runExposureFromMSBuildings()" style="flex:1;padding:5px 8px;background:rgba(66,165,245,.08);border:1px solid rgba(66,165,245,.25);border-radius:4px;color:#42a5f5;font-size:11px;cursor:pointer;text-align:left">
+                  <i class="fa fa-search-location fa-xs"></i>&nbsp;Verificar Exposição de Edificações
+                </button>
+                <button onclick="toggleInfoPopup('ms-bldg-info',this);event.stopPropagation()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:50%;width:18px;height:18px;font-size:10px;color:#90a4ae;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;flex-shrink:0" title="Sobre os dados de edificações"><i class="fa fa-info fa-xs"></i></button>
+              </div>
+            </div>
+            <div id="ms-bldg-info" style="display:none;font-size:11px;color:#78909c;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:4px;padding:6px 8px;margin-top:4px;line-height:1.7">
+              Edificações detectadas com <b style="color:#cfd8dc">Microsoft Building Footprints</b> — base global de pegadas de edificações gerada por IA a partir de imagens de satélite.<br>
+              <a href="https://planetarycomputer.microsoft.com/dataset/ms-buildings" target="_blank" rel="noopener" style="color:#42a5f5;word-break:break-all">planetarycomputer.microsoft.com/dataset/ms-buildings</a>
+            </div>
+
+            <div style="text-align:center;color:#263545;margin-bottom:6px;font-size:11px">↓</div>
+
+            <!-- hint shown after ① is done -->
+            <div id="urbana-cross-hint" style="display:none;font-size:10px;color:#ffb300;background:rgba(255,179,0,.06);border:1px solid rgba(255,179,0,.2);border-radius:4px;padding:5px 8px;margin-bottom:6px;line-height:1.5">
+              💡 Execute <b>②</b> para ver o cruzamento <b>Área Urbana × Exposição</b> nos resultados.
+            </div>
+
+            <!-- ② Área Urbana (opcional) -->
+            <div id="btn-urbana-filter-row" style="margin-bottom:6px">
+              <div style="display:flex;align-items:center;gap:5px;margin-bottom:4px">
+                <span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:rgba(255,255,255,.08);font-size:9px;font-weight:700;color:#78909c;flex-shrink:0">②</span>
+                <span style="font-size:10px;color:#78909c">Área Urbana</span>
+                <span style="font-size:9px;color:#546e7a;border:1px solid rgba(255,255,255,.1);border-radius:3px;padding:0 4px">opcional</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:4px">
+                <button id="btn-urbana-filter" onclick="runUrbanaFilter()"
+                  style="flex:1;padding:5px 8px;background:rgba(255,179,0,.06);border:1px solid rgba(255,179,0,.25);border-radius:4px;color:#ffb300;font-size:11px;cursor:pointer;text-align:left">
+                  <i class="fa fa-city fa-xs"></i>&nbsp;Filtrar por Área Urbana
+                </button>
+                <button onclick="toggleInfoPopup('urbana-filter-info',this);event.stopPropagation()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:50%;width:18px;height:18px;font-size:10px;color:#90a4ae;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;flex-shrink:0" title="Sobre o filtro de Área Urbana"><i class="fa fa-info fa-xs"></i></button>
+              </div>
+              <div id="urbana-filter-info" style="display:none;font-size:11px;color:#78909c;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:4px;padding:6px 8px;margin-top:4px;line-height:1.7">
+                Filtra os setores de risco que se encontram <b style="color:#cfd8dc">dentro da Área Urbana ou a até 50 m de sua fronteira</b>.<br>
+                A delimitação da Área Urbana é baseada nos dados oficiais do IBGE para os 821 municípios prioritários do programa de mapeamento de risco do SGB/CPRM.<br>
+                O critério de proximidade de 50 m é adotado para incluir setores que, embora localizados imediatamente fora do perímetro urbano, apresentam potencial de afetar edificações e infraestrutura urbana.
+              </div>
+            </div>
           </div>
-          <button id="btn-ms-buildings" onclick="runExposureFromMSBuildings()" style="display:none;width:100%;padding:6px 10px;margin-bottom:6px;background:rgba(66,165,245,.08);border:1px solid rgba(66,165,245,.25);border-radius:4px;color:#42a5f5;font-size:12px;cursor:pointer;text-align:left">
-            <i class="fa fa-search-location fa-xs"></i>&nbsp;Verificar Exposição de Edificações
-          </button>
           <button id="btn-load-geojson" onclick="triggerBuildingUpload()" style="display:none;width:100%;padding:6px 10px;margin-bottom:6px;background:rgba(156,39,176,.08);border:1px solid rgba(156,39,176,.25);border-radius:4px;color:#ce93d8;font-size:12px;cursor:pointer;text-align:left">
             <i class="fa fa-folder-open fa-xs"></i>&nbsp;Carregar Edificações (GeoJSON)
           </button>
@@ -1465,6 +1533,22 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
             <span style="font-size:11px;color:#78909c;white-space:nowrap">Selecionado:</span>
             <span id="selected-zone-banner-label" style="font-size:12px;font-weight:700;color:#ffa726;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1"></span>
             <button onclick="clearZoneHighlight()" title="Limpar seleção" style="background:none;border:none;color:#78909c;cursor:pointer;font-size:13px;padding:0 2px;flex-shrink:0;line-height:1">&times;</button>
+          </div>
+          <div class="zone-filter-bar" id="zone-filter-bar" style="display:none">
+            <div class="zone-filter-row">
+              <button class="zfb zfb-active" id="zfb-all"      onclick="_zoneFilterBtn('all')">Todos</button>
+              <button class="zfb"            id="zfb-target"   onclick="_zoneFilterBtn('target')">✓ Incl.</button>
+              <button class="zfb"            id="zfb-review"   onclick="_zoneFilterBtn('review')">? Análise</button>
+              <button class="zfb"            id="zfb-excluded" onclick="_zoneFilterBtn('excluded')">✕ Excl.</button>
+            </div>
+            <input type="search" id="zone-search-input" placeholder="Filtrar por nome..." oninput="_zoneSearch(this.value)" autocomplete="off">
+            <div class="zone-pg-bar">
+              <button class="zone-pg-btn" id="zone-pg-first" onclick="_zonePageFirst()" title="Primeira página">&#171;</button>
+              <button class="zone-pg-btn" id="zone-pg-prev"  onclick="_zonePage(-1)"    title="Anterior">&#8249; Ant.</button>
+              <span id="zone-pg-info" style="font-size:10px">— / —</span>
+              <button class="zone-pg-btn" id="zone-pg-next"  onclick="_zonePage(1)"     title="Próximo">Próx. &#8250;</button>
+              <button class="zone-pg-btn" id="zone-pg-last"  onclick="_zonePageLast()"  title="Última página">&#187;</button>
+            </div>
           </div>
           <div id="excl-zone-list"></div>
         </div>
@@ -1809,6 +1893,7 @@ let municBoundaryLayer  = null;  // 行政界レイヤ（レイヤコントロ�
 let areaUrbanaLayer  = null;
 let _areaUrbanaOn    = false;
 let _activeIbgeCode  = null;
+let _aoiPreEditGeoJSON = null;  // AOI edit mode: pre-edit snapshot for cancel
 let slopeLayer        = null;
 let slopeRasterLayer  = null; // canvas image overlay for real DEM
 let analysisRun  = false;
@@ -1940,6 +2025,10 @@ let _cartaBldgWasVisible = false; // true if buildingLayer was visible when cart
 let buildingGeoJSON      = null;
 let _mapSPMarkerLayer    = null; // permanent SP_XX label markers on main map
 let exposureResults      = {}; // id → 'exposed'|'nearby'|'clear'
+let _zoneFilterStatus  = 'all'; // zone list status filter
+let _zoneFilterText    = '';    // zone list text search
+let _zoneCurrentPage   = 1;    // zone list pagination page
+const _ZONE_PER_PAGE   = 10;   // zones per page
 let _bldgCache           = null; // bbox-cached flat building features (rebuilt once per analysis)
 let _exposureSourceLabel = '';   // label shown in the summary bar
 let hazardIndicia     = {}; // id → {trincas,arvores,saturacao,degrau,cicatriz}: 'ausente'|'presente'|'marcante'
@@ -2721,8 +2810,7 @@ async function onLocalDemImport(e) {
           document.getElementById('aoi-area').textContent   = `~${areaKm2.toFixed(1)} km²`;
           document.getElementById('aoi-status').textContent = 'Auto (GeoTIFF) ✓';
           document.getElementById('aoi-status').style.color = '#66bb6a';
-          document.getElementById('badge-aoi').textContent  = '✓ OK';
-          document.getElementById('badge-aoi').className    = 'acc-badge acc-badge-ok';
+          _setAoiBadgeOk(Math.round(areaKm2));
         }
       } catch(_) { /* ignore map-fit errors */ }
 
@@ -3735,8 +3823,8 @@ function renderAOI(data, pan=true) {
   _activeIbgeCode = null;  // reset — IBGE-path callers re-set it after this returns
   if (aoiLayer) map.removeLayer(aoiLayer);
   aoiLayer = L.geoJSON(data, {
-    style:{ color:'#1565c0', weight:2, fill:false,
-            dashArray:'6 4', opacity:.8 }
+    style:{ color:'#1565c0', weight:2.5, fill:true, fillColor:'#1565c0', fillOpacity:.18,
+            dashArray:'6 4', opacity:.9 }
   }).addTo(map);
   if (pan) map.fitBounds(aoiLayer.getBounds(), { padding:[20,20] });
   _showMapLeg('aoi', true);
@@ -3856,12 +3944,10 @@ function _updateMunic821Info(ibgeCode) {
     ? '<span style="color:#66bb6a">✓</span>'
     : '<span style="color:#546e7a">—</span>';
   const popStr = data.pop ? data.pop.toLocaleString('pt-BR') + ' hab.' : '—';
-  const areaStr = data.area ? data.area.toLocaleString('pt-BR') + ' km²' : '—';
   dDiv.innerHTML =
     `<span style="color:#78909c">Carta de Suscetibilidade:</span> ${suscHtml}<br>` +
     `<span style="color:#78909c">S2ID:</span> ${s2idHtml}` +
-    `&nbsp;&nbsp;<span style="color:#78909c">Pop.:</span> ${popStr}` +
-    `&nbsp;&nbsp;<span style="color:#78909c">Área:</span> ${areaStr}`;
+    `&nbsp;&nbsp;<span style="color:#78909c">Pop.:</span> ${popStr}`;
 
   // Progress display
   const progDiv = document.getElementById('m821-progress');
@@ -3884,6 +3970,10 @@ function _updateMunic821Info(ibgeCode) {
 
 // ── Área Urbana (IBGE Setores Censitários — perímetro urbano) ────────────────
 let _areaUrbana821GeoJSON = null;
+let _urbanFilterActive    = false;
+let _exposureFilterActive = false;
+let _hiddenBldgLayers    = []; // sublayers removed from buildingLayer when exposure filter is active
+let _rtcPriorityIds = []; // zone IDs that are exposed or nearby (for Revisão counter)
 
 async function _loadAreaUrbana821All() {
   if (areaUrbanaLayer) {
@@ -3957,8 +4047,7 @@ async function loadMunicBoundary(munVal, pan=true) {
     aoiDefined = true;
     document.getElementById('aoi-status').textContent = 'Definida (bbox teste)';
     document.getElementById('aoi-status').style.color = '#42a5f5';
-    document.getElementById('badge-aoi').textContent  = '✓ OK';
-    document.getElementById('badge-aoi').className    = 'acc-badge acc-badge-ok';
+    _setAoiBadgeOk(_calcAoiAreaKm2());
     updateDot('aoi', true);
     checkReady();
     toast('ok',
@@ -3980,8 +4069,7 @@ async function loadMunicBoundary(munVal, pan=true) {
 
     document.getElementById('aoi-status').textContent = 'Definida — IBGE ✓';
     document.getElementById('aoi-status').style.color = '#66bb6a';
-    document.getElementById('badge-aoi').textContent  = '✓ OK';
-    document.getElementById('badge-aoi').className    = 'acc-badge acc-badge-ok';
+    _setAoiBadgeOk(_calcAoiAreaKm2());
     updateDot('aoi', true);
     checkReady();
     toast('ok',
@@ -3989,6 +4077,8 @@ async function loadMunicBoundary(munVal, pan=true) {
       + ` — IBGE cód. ${meta.ibge} (Malhas API)`);
     _activeIbgeCode = String(meta.ibge).padStart(7,'0');
     _updateMunic821Info(meta.ibge);
+    _showAoiUrbanRefineBar(true);
+    _showAoiEditBar(true);
 
   } catch(err) {
     console.warn('IBGE Malhas API error:', err);
@@ -4011,6 +4101,8 @@ async function loadMunicBoundary(munVal, pan=true) {
       `<i class="fa fa-exclamation-triangle" style="color:#ffa726"></i>&nbsp;IBGE API indisponível.`
       + ` Limite aproximado utilizado para <b>${meta.name}</b>.`);
     if (meta.ibge) { _activeIbgeCode = String(meta.ibge).padStart(7,'0'); _updateMunic821Info(meta.ibge); }
+    _showAoiUrbanRefineBar(!!meta.ibge);
+    _showAoiEditBar(true);
   }
 }
 
@@ -4037,10 +4129,11 @@ map.on('pm:create', e => {
   document.getElementById('aoi-status').textContent = 'Definida ✓';
   document.getElementById('aoi-status').style.color = '#66bb6a';
   document.getElementById('aoi-area').textContent = areaKm2 + ' km² (est.)';
-  document.getElementById('badge-aoi').textContent = '✓ OK';
-  document.getElementById('badge-aoi').className = 'acc-badge acc-badge-ok';
+  _setAoiBadgeOk(areaKm2);
   updateDot('aoi', true);
   toast('ok', '<i class="fa fa-check-circle" style="color:#4caf50"></i>&nbsp;AOI desenhada com sucesso.');
+  _showAoiUrbanRefineBar(false);
+  _showAoiEditBar(true);
   checkReady();
   if (cmpMode) _cmpAoiMarkDefined('Área desenhada');
 });
@@ -4114,10 +4207,8 @@ function deleteZone(id) {
   // Remove DOM block
   const block = document.getElementById(`exclblock-${id}`);
   if (block) block.remove();
-  // Update badge count
-  const remaining = document.querySelectorAll('.h-zone-block').length;
-  const badge = document.getElementById('badge-s2-excl');
-  if (badge) badge.textContent = `${remaining} setores`;
+  updateStatusBadge();
+  _applyZoneListFilter();
   _refreshMapSPLabels();
   _autoSave();
 }
@@ -4138,6 +4229,7 @@ function selectDEM(src) {
 
   // Show/hide import box and UP42 panel
   document.getElementById('local-dem-import-row').style.display = src === 'local'    ? 'block' : 'none';
+  if (src === 'local' && !localDemBuffer) document.getElementById('local-dem-file').click();
   document.getElementById('nextmap6-panel').style.display       = src === 'nextmap6' ? 'block' : 'none';
 
   // nextmap6: badge stays "Necessário" until data is actually downloaded
@@ -4574,6 +4666,95 @@ function _calcAoiAreaKm2() {
   features.forEach(f => { if (f.geometry) total += _up42PolyAreaKm2(f.geometry); });
   return total > 0 ? Math.round(total) : null;
 }
+
+const _AOI_MAX_KM2 = 2000;
+function _setAoiBadgeOk(areaKm2) {
+  const badge = document.getElementById('badge-aoi');
+  if (!badge) return;
+  if (areaKm2 && areaKm2 > _AOI_MAX_KM2) {
+    badge.textContent = '⚠ Grande';
+    badge.className   = 'acc-badge acc-badge-req';
+  } else {
+    badge.textContent = '✓ OK';
+    badge.className   = 'acc-badge acc-badge-ok';
+  }
+}
+
+// ── Área Urbana → AOI ────────────────────────────────────────────────────────
+async function _setAoiFromAreaUrbana() {
+  if (!_activeIbgeCode) {
+    toast('warn', 'Selecione um município primeiro (Limite Municipal).');
+    return;
+  }
+  const btn = document.getElementById('btn-aoi-from-urbana');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin fa-xs"></i>&nbsp;Processando...'; }
+
+  if (!_areaUrbana821GeoJSON) {
+    try {
+      const r = await fetch('area_urbana_821.geojson');
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      _areaUrbana821GeoJSON = await r.json();
+    } catch(err) {
+      toast('warn', '<i class="fa fa-exclamation-triangle" style="color:#ffa726"></i>&nbsp;Erro ao carregar Área Urbana: ' + err.message);
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-th fa-xs"></i>&nbsp;Área Urbana (IBGE)'; }
+      return;
+    }
+  }
+
+  const code7 = _activeIbgeCode; // 7-digit padded string
+  // area_urbana_821.geojson: one feature per municipality, property 'code' = 7-digit IBGE code
+  const matching = _areaUrbana821GeoJSON.features.filter(f => {
+    const cd = String(f.properties.code || f.properties.CD_SETOR || f.properties.cd_setor || f.properties.geocodigo || '');
+    return cd === code7 || cd.startsWith(code7);
+  });
+
+  if (!matching.length) {
+    toast('warn', '<i class="fa fa-exclamation-triangle" style="color:#ffa726"></i>&nbsp;Sem dados de Área Urbana para este município no dataset.');
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-th fa-xs"></i>&nbsp;Área Urbana (IBGE)'; }
+    return;
+  }
+
+  const _btnReset = () => { if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-th fa-xs"></i>&nbsp;Área Urbana (IBGE)'; } };
+  try {
+    const _yield = () => new Promise(r => setTimeout(r, 0));
+    // If multiple polygons (e.g. census-sector dataset), merge with turf.union; single feature used directly
+    await _yield();
+    let merged = matching[0];
+    for (let i = 1; i < matching.length; i++) {
+      if (i % 20 === 0) await _yield();
+      try { merged = turf.union(merged, matching[i]); } catch(e) { /* skip degenerate */ }
+    }
+
+    const savedCode = code7;
+    renderAOI(merged, true);
+    _activeIbgeCode = savedCode; // renderAOI resets it — restore
+
+    aoiDefined = true;
+    const areaKm2 = _calcAoiAreaKm2();
+    document.getElementById('aoi-area').textContent   = areaKm2 ? `${areaKm2} km²` : '—';
+    document.getElementById('aoi-status').textContent = 'Área Urbana (IBGE) ✓';
+    document.getElementById('aoi-status').style.color = '#ffb300';
+    _setAoiBadgeOk(areaKm2);
+    updateDot('aoi', true);
+    checkReady();
+    _showAoiEditBar(true);
+    _btnReset();
+    const toastDetail = matching.length > 1 ? `${matching.length} setores → 1 polígono` : 'área urbana carregada';
+    toast('ok', `<i class="fa fa-th fa-xs" style="color:#ffb300"></i>&nbsp;AOI: Área Urbana (IBGE) — ${toastDetail}`);
+  } catch(err) {
+    console.error('[_setAoiFromAreaUrbana]', err);
+    toast('warn', '<i class="fa fa-exclamation-triangle" style="color:#ffa726"></i>&nbsp;Erro ao aplicar Área Urbana: ' + err.message);
+    _btnReset();
+  }
+}
+
+function _showAoiUrbanRefineBar() { /* removed — Refinar AOI para bar廃止 */ }
+
+// Editar AOI / Redesenhar bars removed
+function _showAoiEditBar()  { /* removed */ }
+function startAoiEdit()     { /* removed */ }
+function confirmAoiEdit()   { /* removed */ }
+function cancelAoiEdit()    { /* removed */ }
 
 function _cmpAoiMarkDefined(label) {
   let areaStr = '';
@@ -5490,6 +5671,63 @@ function _applyHazardColors(id) {
   if (adLayerMap[id]) adLayerMap[id].setStyle(_getAdStyle(id));
 }
 
+// Unified map dimming: dims any zone hidden by Área Urbana OR exposure filter.
+// Callers must set data-urbanaHidden / data-expHidden BEFORE calling.
+function _applyMapDimming() {
+  const dimStyle = { color:'#90a4ae', opacity:0.6, fillColor:'#90a4ae', fillOpacity:0.12, weight:1, dashArray:null };
+  const _dim = id => {
+    const b = document.getElementById(`exclblock-${id}`);
+    return b && (b.dataset.urbanaHidden === '1' || b.dataset.expHidden === '1');
+  };
+  Object.entries(acLayerMap).forEach(([id, layer]) => {
+    layer.setStyle(_dim(id) ? dimStyle : _getAcStyle(id));
+  });
+  Object.entries(adLayerMap).forEach(([id, layer]) => {
+    layer.setStyle(_dim(id) ? dimStyle : _getAdStyle(id));
+  });
+  if (slopeLayer) {
+    slopeLayer.eachLayer(l => {
+      const id = l.feature && l.feature.properties && l.feature.properties.id;
+      if (!id) return;
+      if (_dim(id)) l.setStyle(dimStyle); else slopeLayer.resetStyle(l);
+    });
+  }
+  // Transect lines and top/bottom points: hide sublayers for dimmed zones
+  Object.keys(transectLayerMap).forEach(id => {
+    const shouldDim = _dim(id);
+    const tl = transectLayerMap[id];
+    if (tl && transectLayer) {
+      if (shouldDim) transectLayer.removeLayer(tl);
+      else if (_transectUserOn && !transectLayer.hasLayer(tl)) transectLayer.addLayer(tl);
+    }
+    const bl = topBotLayerMap[id];
+    if (bl && topBotLayer) {
+      if (shouldDim) topBotLayer.removeLayer(bl);
+      else if (_topBotUserOn && !topBotLayer.hasLayer(bl)) topBotLayer.addLayer(bl);
+    }
+  });
+
+  // Building polygons: remove non-hit buildings from map when filter active, restore when off
+  if (buildingLayer) {
+    if (_exposureFilterActive) {
+      // Restore any previously hidden first to avoid double-hiding on re-calls
+      _hiddenBldgLayers.forEach(l => buildingLayer.addLayer(l));
+      _hiddenBldgLayers = [];
+      // Remove sublayers with no zone contact (reduces DOM elements during pan/zoom)
+      buildingLayer.eachLayer(l => {
+        if (!l.feature?.properties?._hitZone) _hiddenBldgLayers.push(l);
+      });
+      _hiddenBldgLayers.forEach(l => buildingLayer.removeLayer(l));
+    } else {
+      // Restore all previously removed sublayers
+      _hiddenBldgLayers.forEach(l => buildingLayer.addLayer(l));
+      _hiddenBldgLayers = [];
+    }
+  }
+}
+
+function _applyUrbanaMapStyle(_active) { _applyMapDimming(); }
+
 function _fichaHtml(id) {
   const INDICIOS = [
     ['trincas',  'Trincas no Terreno'],
@@ -5867,8 +6105,6 @@ async function onAoiImport(e) {
       aoiDefined = true;
       document.getElementById('aoi-status').textContent = 'Importada ✓';
       document.getElementById('aoi-status').style.color = '#66bb6a';
-      document.getElementById('badge-aoi').textContent = '✓ OK';
-      document.getElementById('badge-aoi').className = 'acc-badge acc-badge-ok';
 
       const feat0 = (gj.features && gj.features[0]) ? gj.features[0] : gj;
       const props0 = feat0.properties || {};
@@ -5887,8 +6123,10 @@ async function onAoiImport(e) {
           `${areaKm2.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})} km²`;
         document.getElementById('aoi-area').style.color = '';
       }
-
+      _setAoiBadgeOk(areaKm2 || _calcAoiAreaKm2());
       updateDot('aoi', true);
+      _showAoiUrbanRefineBar(false);
+      _showAoiEditBar(true);
       checkReady();
       if (cmpMode)
         _cmpAoiMarkDefined(file.name.replace(/\.[^.]+$/, ''));
@@ -5985,13 +6223,14 @@ async function loadMunicByIbge(ibgeCode, municName, uf) {
 
     document.getElementById('aoi-status').textContent = 'Definida — IBGE ✓';
     document.getElementById('aoi-status').style.color = '#66bb6a';
-    document.getElementById('badge-aoi').textContent  = '✓ OK';
-    document.getElementById('badge-aoi').className    = 'acc-badge acc-badge-ok';
+    _setAoiBadgeOk(_calcAoiAreaKm2());
     updateDot('aoi', true);
     checkReady();
     toast('ok', `<i class="fa fa-map" style="color:#42a5f5"></i>&nbsp;AOI: <b>${_dynMunicName}</b>`);
     _activeIbgeCode = String(ibgeCode).padStart(7,'0');
     _updateMunic821Info(ibgeCode);
+    _showAoiUrbanRefineBar(true);
+    _showAoiEditBar(true);
   } catch(err) {
     document.getElementById('aoi-status').textContent = 'Erro IBGE';
     document.getElementById('aoi-status').style.color = '#ef5350';
@@ -6021,10 +6260,11 @@ function setAoiMode(mode) {
     document.getElementById('aoi-area').style.color = '';
     document.getElementById('aoi-status').textContent = 'Definida ✓';
     document.getElementById('aoi-status').style.color = '#66bb6a';
-    document.getElementById('badge-aoi').textContent = '✓ OK';
-    document.getElementById('badge-aoi').className = 'acc-badge acc-badge-ok';
+    _setAoiBadgeOk(areaKm2);
     updateDot('aoi', true);
     checkReady();
+    _showAoiUrbanRefineBar(false);
+    _showAoiEditBar(true);
   } else if (mode === 'munic') {
     if (drawnAoi) { map.removeLayer(drawnAoi); drawnAoi=null; }
     if (picker) picker.style.display = 'block';
@@ -6038,6 +6278,8 @@ function setAoiMode(mode) {
     document.getElementById('aoi-status').textContent = 'Desenhando...';
     document.getElementById('aoi-status').style.color = '#42a5f5';
     updateDot('aoi', false);
+    _showAoiUrbanRefineBar(false);
+    _showAoiEditBar(false);
     checkReady();
   } else if (mode === 'import') {
     if (picker) picker.style.display = 'none';
@@ -7087,10 +7329,7 @@ function buildHTable(slopeData) {
     }
   }
 
-  body.innerHTML = `<div style="font-size:10px;color:#546e7a;padding:5px 6px;line-height:1.6">
-    ${passT}/${totalT} perfis com H ≥ 5m.<br>
-    Clique em <b style="color:#42a5f5"><i class="fa fa-arrows-alt-v"></i></b> em cada setor (seção 2.5) para ver o detalhe.
-  </div>`;
+  body.innerHTML = '';
 }
 
 // Generate H-verification table HTML for a single zone (used by toggleHTable)
@@ -10689,6 +10928,27 @@ function onCommentInput(id, value) {
 }
 
 function buildExclusionList(slopeData) {
+  // Reset both filter states when a new zone set is loaded
+  _urbanFilterActive = false;
+  _exposureFilterActive = false;
+  _hideResultadoCard();
+  const _rh = document.getElementById('urbana-cross-hint');
+  if (_rh) _rh.style.display = 'none';
+  _applyUrbanaMapStyle(false);
+  const _ufBtn = document.getElementById('btn-urbana-filter');
+  if (_ufBtn) {
+    _ufBtn.style.background = 'rgba(255,179,0,.06)';
+    _ufBtn.style.borderColor = 'rgba(255,179,0,.25)';
+    _ufBtn.style.color = '#ffb300';
+    _ufBtn.innerHTML = '<i class="fa fa-city fa-xs"></i>&nbsp;Filtrar por Área Urbana';
+  }
+  const _expBtn = document.getElementById('btn-ms-buildings');
+  if (_expBtn) {
+    _expBtn.style.background  = 'rgba(66,165,245,.08)';
+    _expBtn.style.borderColor = 'rgba(66,165,245,.25)';
+    _expBtn.style.color       = '#42a5f5';
+    _expBtn.innerHTML = '<i class="fa fa-search-location fa-xs"></i>&nbsp;Verificar Exposição de Edificações';
+  }
   zoneStatus = {};
   zoneComments = {};
   hazardIndicia = {};
@@ -10712,6 +10972,7 @@ function buildExclusionList(slopeData) {
             <span>${_spLabel(p.id)}
               <span class="hazard-badge hb-unset" id="hazard-badge-${p.id}" title="Perigo não avaliado">—</span>
               <span class="exp-badge exp-pending" id="exp-badge-${p.id}" title="Exposição não verificada">?</span>
+              <span class="urbana-badge" id="urbana-badge-${p.id}" title="Dentro da Área Urbana ou a ≤50 m da fronteira" style="display:none">🏙</span>
             </span>
           </div>
           <div style="display:flex;align-items:center;gap:4px">
@@ -10778,6 +11039,7 @@ function buildExclusionList(slopeData) {
     ${zonesHtml}`;
   updateStatusBadge();
   _refreshMapSPLabels();
+  _initZoneListFilter();
 }
 
 function handleZoneButton(id) {
@@ -10868,6 +11130,7 @@ function updateReviewProgress() {
     : `Revisado ${reviewed} / ${total}`;
   if (barEl) barEl.style.width = `${pct}%`;
   updateStatusBadge();
+  _updateRtcProgress();
 }
 
 function selectZoneFromMap(id) {
@@ -10943,6 +11206,7 @@ function setZoneStatus(id, newStatus) {
 
   markZoneReviewed(id);
   updateStatusBadge();
+  _applyZoneListFilter();
   _autoSave();
 }
 
@@ -11400,8 +11664,13 @@ async function _runBuildingExposureAnalysis(features, sourceLabel, btn) {
   const bufKm = 0.05;
   let nExposed=0, nNearby=0, nClear=0;
   const yieldToUI = () => new Promise(r => setTimeout(r, 0));
-  const zoneIds = Object.keys(acPolyData);
-  console.log('[Exposure] Analysing zones:', zoneIds.length, '| buildings:', features.length, '| source:', sourceLabel);
+  // Analyse ALL zones regardless of Área Urbana filter state.
+  // Área Urbana filter is now applied as step ② after exposure analysis.
+  const allZoneIds = Object.keys(acPolyData);
+  const zoneIds = allZoneIds;
+  // If ② was already active when ① runs, include cross-table in the result card.
+  const _urbanaActiveForSummary = _urbanFilterActive;
+  console.log('[Exposure] Analysing zones:', zoneIds.length, '(of', allZoneIds.length, ') | buildings:', features.length, '| source:', sourceLabel);
 
   const _ovl    = document.getElementById('processing-overlay');
   const _barEl  = document.getElementById('proc-bar');
@@ -11445,12 +11714,12 @@ async function _runBuildingExposureAnalysis(features, sourceLabel, btn) {
         try {
           const bPoly = turf.polygon(b.f.geometry.coordinates);
           if (turf.booleanIntersects(acPoly, bPoly) || (adPoly && turf.booleanIntersects(adPoly, bPoly))) {
-            status = 'exposed'; break;
+            status = 'exposed'; b.f.properties._hitZone = true; break;
           }
           if (status !== 'exposed' && (
             (acBuf && turf.booleanIntersects(acBuf, bPoly)) ||
             (adBuf && turf.booleanIntersects(adBuf, bPoly))
-          )) status = 'nearby';
+          )) { status = 'nearby'; b.f.properties._hitZone = true; }
         } catch(_) {}
       }
       exposureResults[id] = status;
@@ -11478,67 +11747,265 @@ async function _runBuildingExposureAnalysis(features, sourceLabel, btn) {
     if (!block) return;
     const badge = block.querySelector('.exp-badge');
     const cfg = {
-      exposed:{ cls:'exp-exposed', icon:'🏠', title:'Edificações dentro da AC/AD — alto risco de exposição' },
-      nearby: { cls:'exp-nearby',  icon:'!',  title:'Edificações a menos de 50m da AC/AD — verificar' },
+      exposed:{ cls:'exp-exposed', icon:'🏠', title:'Edificações dentro da AC/AD ou a ≤50m — risco de exposição' },
+      nearby: { cls:'exp-exposed', icon:'🏠', title:'Edificações dentro da AC/AD ou a ≤50m — risco de exposição' },
       clear:  { cls:'exp-clear',   icon:'✓',  title:'Sem edificações detectadas' }
     }[exposureResults[id]];
     if (badge && cfg) { badge.className=`exp-badge ${cfg.cls}`; badge.title=cfg.title; badge.textContent=cfg.icon; }
   });
 
   // ── E. Button + toast + filter bar ────────────────────────────
-  if (btn) btn.innerHTML = '<i class="fa fa-check fa-xs"></i>&nbsp;Exposição verificada';
+  if (btn) {
+    btn.disabled = false;
+    btn.style.background  = 'rgba(66,165,245,.18)';
+    btn.style.borderColor = 'rgba(66,165,245,.6)';
+    btn.style.color       = '#90caf9';
+    btn.innerHTML = '<i class="fa fa-check fa-xs"></i>&nbsp;Exposição ✓ — limpar filtro';
+  }
+  _exposureFilterActive = true;
+  // Show hint only when ② is NOT yet active; when ② was already active the card already has the cross-table.
+  const _hint = document.getElementById('urbana-cross-hint');
+  if (_hint) _hint.style.display = _urbanFilterActive ? 'none' : '';
   const coverageWarn = features.length === 0 ? ' ⚠ Sem dados de edificações (verificação in loco recomendada)' : '';
   toast('ok',
     `<i class="fa fa-home" style="color:#ffa726"></i>&nbsp;` +
     `[${sourceLabel}] ${features.length} edificação(ões) — ` +
-    `<span style="color:#ef5350">🔴 ${nExposed}</span> dentro &nbsp;` +
-    `<span style="color:#ffa726">🟡 ${nNearby}</span> até 50m &nbsp;` +
-    `<span style="color:#66bb6a">🟢 ${nClear}</span> sem impacto${coverageWarn}`
+    `<span style="color:#ef5350">🔴 ${nExposed + nNearby}</span> expostos &nbsp;` +
+    `<span style="color:#66bb6a">🟢 ${nClear}</span> seguros${coverageWarn}`
   );
-  const existingBar = document.getElementById('exposure-summary-bar');
-  if (existingBar) existingBar.remove();
-  const bar = document.createElement('div');
-  bar.id = 'exposure-summary-bar';
-  bar.innerHTML = `
-    <div style="font-size:12px;color:#78909c;margin-bottom:4px">
-      Triagem de exposição [${sourceLabel}] — ${zoneIds.length} zona(s) / ${features.length} edificação(ões)
-    </div>
-    <div class="exp-filter-btns">
-      <button class="exp-filter-btn" id="efb-all" onclick="filterExposure('all')">Todos (${zoneIds.length})</button>
-      <button class="exp-filter-btn efb-exposed active" id="efb-exposed" onclick="filterExposure('exposed')">🏠 Expostos (${nExposed})</button>
-      <button class="exp-filter-btn efb-nearby active"  id="efb-nearby"  onclick="filterExposure('nearby')">! Próximos (${nNearby})</button>
-      <button class="exp-filter-btn efb-clear"  id="efb-clear"  onclick="filterExposure('clear')">✓ Seguros (${nClear})</button>
-    </div>`;
-  const listEl = document.getElementById('excl-zone-list');
-  if (listEl) listEl.insertBefore(bar, listEl.firstChild);
-  // Show all zones so the user always sees results; 'alert' would hide everything when nExposed=0
+  _showResultadoCard(nExposed, nNearby, nClear, zoneIds, _urbanaActiveForSummary, sourceLabel);
   filterExposure(nExposed + nNearby > 0 ? 'alert' : 'all');
 }
 
 // ── Update summary bar counts from current exposureResults ───────
 function _refreshExposureBar() {
-  const bar = document.getElementById('exposure-summary-bar');
-  if (!bar) return;
+  if (!Object.keys(exposureResults).length) return;
   const allIds = Object.keys(acPolyData);
-  let nExposed=0, nNearby=0, nClear=0, nPending=0;
+  let nExposed=0, nNearby=0, nClear=0;
   allIds.forEach(id => {
     const r = exposureResults[id];
     if (r === 'exposed') nExposed++;
     else if (r === 'nearby') nNearby++;
     else if (r === 'clear') nClear++;
-    else nPending++;
   });
-  const nBldgs = buildingGeoJSON?.features?.length || 0;
-  bar.innerHTML = `
-    <div style="font-size:12px;color:#78909c;margin-bottom:4px">
-      Triagem de exposição [${_exposureSourceLabel}] — ${allIds.length} zona(s) / ${nBldgs} edificação(ões)
-    </div>
-    <div class="exp-filter-btns">
-      <button class="exp-filter-btn" id="efb-all" onclick="filterExposure('all')">Todos (${allIds.length})</button>
-      <button class="exp-filter-btn efb-exposed active" id="efb-exposed" onclick="filterExposure('exposed')">🏠 Expostos (${nExposed})</button>
-      <button class="exp-filter-btn efb-nearby active"  id="efb-nearby"  onclick="filterExposure('nearby')">! Próximos (${nNearby})</button>
-      <button class="exp-filter-btn efb-clear"  id="efb-clear"  onclick="filterExposure('clear')">✓ Seguros (${nClear})</button>
+  _showResultadoCard(nExposed, nNearby, nClear, allIds, _urbanFilterActive, _exposureSourceLabel);
+}
+
+// ── Resultado da Triagem card ─────────────────────────────────────────────────
+function _showResultadoCard(nExposed, nNearby, nClear, zoneIds, urbanaActive, sourceLabel) {
+  // Remove any existing bar or card
+  const existingBar = document.getElementById('exposure-summary-bar');
+  if (existingBar) existingBar.remove();
+  const existingCard = document.getElementById('resultado-triagem-card');
+  if (existingCard) existingCard.remove();
+
+  // Store priority zone IDs (exposed or nearby)
+  _rtcPriorityIds = zoneIds.filter(id => exposureResults[id] === 'exposed' || exposureResults[id] === 'nearby');
+
+  const nRisk = nExposed + nNearby;
+  const reviewedPriority = _rtcPriorityIds.filter(id => reviewedZones.has(id)).length;
+
+  // Context line
+  const nUrban = urbanaActive
+    ? Object.keys(acPolyData).filter(id => { const b=document.getElementById(`exclblock-${id}`); return !b||b.dataset.urbanaHidden!=='1'; }).length
+    : 0;
+  const contextLine = urbanaActive
+    ? `<b>${zoneIds.length}</b> setores analisados &nbsp;·&nbsp; <span style="color:#ffb300">🏙 Área Urbana: ${nUrban} Dentro</span>`
+    : `<b>${zoneIds.length}</b> setores analisados`;
+
+  // Cross-table: Área Urbana × Exposição (shown only when both filters active)
+  let crossTableHtml = '';
+  if (urbanaActive) {
+    let u_exp=0, u_clr=0;   // urban: exposed(=exposed+nearby), clear
+    let o_exp=0, o_clr=0, o_none=0;  // non-urban
+    Object.keys(acPolyData).forEach(id => {
+      const b = document.getElementById(`exclblock-${id}`);
+      const isUrban = !b || b.dataset.urbanaHidden !== '1';
+      const exp = exposureResults[id];
+      if (isUrban) {
+        if (exp === 'exposed' || exp === 'nearby') u_exp++;
+        else u_clr++;
+      } else {
+        if (exp === 'exposed' || exp === 'nearby') o_exp++;
+        else if (exp === 'clear') o_clr++;
+        else o_none++;
+      }
+    });
+    const nOut = o_exp + o_clr + o_none;
+    const foraHasData = o_exp > 0 || o_clr > 0;
+    const t_exp = u_exp + (foraHasData ? o_exp : 0);
+    const t_clr = u_clr + (foraHasData ? o_clr : 0);
+    const nIn   = zoneIds.length;
+    const nTot  = nIn + (foraHasData ? nOut - o_none : 0);
+    const _SEP  = 'border-left:1px solid rgba(255,255,255,.1)';
+    const _cell = (urbVal, oVal, totVal, color) =>
+      `<td style="padding:3px 6px;text-align:center;font-weight:700;color:${color}">${urbVal}</td>` +
+      `<td style="padding:3px 6px;text-align:center;color:${foraHasData ? color : '#455a64'}">${!foraHasData ? '—' : oVal}</td>` +
+      `<td style="padding:3px 6px;text-align:center;font-weight:700;color:${color};${_SEP}">${!foraHasData ? urbVal : totVal}</td>`;
+    crossTableHtml = `
+    <div style="padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.06)">
+      <div style="font-size:10px;color:#546e7a;letter-spacing:.04em;margin-bottom:5px">Área Urbana × Exposição</div>
+      <table style="width:100%;border-collapse:collapse;font-size:11px">
+        <thead>
+          <tr style="border-bottom:1px solid rgba(255,255,255,.08)">
+            <td style="padding:3px 6px"></td>
+            <th style="padding:3px 6px;color:#ffb300;font-weight:600;text-align:center">🏙 Dentro<br><span style="font-size:9px;font-weight:400">(${nIn})</span></th>
+            <th style="padding:3px 6px;color:#546e7a;font-weight:600;text-align:center">— Fora<br><span style="font-size:9px;font-weight:400">(${nOut})</span></th>
+            <th style="padding:3px 6px;color:#78909c;font-weight:600;text-align:center;${_SEP}">Total<br><span style="font-size:9px;font-weight:400">(${nTot})</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="padding:3px 6px;color:#ef5350">🔴 Expostos</td>
+            ${_cell(u_exp, o_exp, t_exp, '#ef5350')}
+          </tr>
+          <tr>
+            <td style="padding:3px 6px;color:#66bb6a">✓ Seguros</td>
+            ${_cell(u_clr, o_clr, t_clr, '#66bb6a')}
+          </tr>
+          <tr style="border-top:1px solid rgba(255,255,255,.1)">
+            <td style="padding:3px 6px;color:#78909c;font-weight:600">Total</td>
+            <td style="padding:3px 6px;text-align:center;font-weight:700;color:#78909c">${nIn}</td>
+            <td style="padding:3px 6px;text-align:center;font-weight:700;color:${foraHasData ? '#78909c' : '#455a64'}">${!foraHasData ? '—' : nOut - o_none}</td>
+            <td style="padding:3px 6px;text-align:center;font-weight:700;color:#78909c;${_SEP}">${nTot}</td>
+          </tr>
+          ${o_none > 0 ? `<tr><td style="padding:3px 6px;color:#455a64;font-size:10px" colspan="4">※ Fora: ${o_none} setores não analisados</td></tr>` : ''}
+        </tbody>
+      </table>
     </div>`;
+  }
+
+  // Action buttons
+  let actionBtns = '';
+  if (nRisk > 0) {
+    actionBtns = `
+      <button onclick="filterExposure('alert')" style="background:rgba(239,83,80,.12);border:1px solid rgba(239,83,80,.4);color:#ef5350;padding:5px 8px;border-radius:4px;font-size:11px;cursor:pointer;flex:1">🔴 Expostos (${nRisk})</button>
+      <button onclick="filterExposure('all')"   style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);color:#78909c;padding:5px 8px;border-radius:4px;font-size:11px;cursor:pointer;flex:1">Ver todos (${zoneIds.length})</button>`;
+  } else {
+    actionBtns = `
+      <button onclick="filterExposure('all')"   style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);color:#78909c;padding:5px 8px;border-radius:4px;font-size:11px;cursor:pointer;flex:1">Ver todos (${zoneIds.length})</button>`;
+  }
+
+  // Revisão progress
+  const revisaoLabel = nRisk > 0
+    ? `Revisão dos prioritários: <span id="rtc-revisado-text">${reviewedPriority} / ${nRisk}</span>`
+    : 'Nenhum setor prioritário';
+  const revisaoPct = nRisk > 0 ? Math.round(reviewedPriority / nRisk * 100) : 0;
+
+  const card = document.createElement('div');
+  card.id = 'resultado-triagem-card';
+  card.style.cssText = 'border:1px solid rgba(255,255,255,.1);border-radius:6px;margin-bottom:8px;overflow:hidden;';
+  card.innerHTML = `
+    <div style="font-size:10px;color:#546e7a;text-transform:uppercase;letter-spacing:.06em;padding:6px 10px;background:rgba(255,255,255,.04);border-bottom:1px solid rgba(255,255,255,.06)">
+      Resultado da Triagem &middot; ${sourceLabel}
+    </div>
+    <div style="padding:8px 10px;font-size:11px;color:#90a4ae;border-bottom:1px solid rgba(255,255,255,.06)">
+      ${contextLine}
+    </div>
+    <div style="padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.06)">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+        <span style="font-size:13px">🔴</span>
+        <span style="font-size:18px;font-weight:700;color:#ef5350;min-width:28px;text-align:right">${nRisk}</span>
+        <span style="font-size:11px;color:#ef5350;font-weight:600">Expostos</span>
+        <span style="font-size:10px;color:#78909c;margin-left:2px">dentro da AC/AD</span>
+        <button onclick="toggleInfoPopup('exp-info-popup',this);event.stopPropagation()"
+          style="width:15px;height:15px;border-radius:50%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);color:#90a4ae;font-size:9px;cursor:pointer;flex-shrink:0;padding:0;line-height:1;margin-left:2px">i</button>
+      </div>
+      <div id="exp-info-popup" style="display:none;font-size:11px;color:#90a4ae;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);border-radius:4px;padding:6px 8px;margin-bottom:6px;line-height:1.5">
+        Inclui edificações <b>dentro da AC/AD</b> e edificações a <b>até 50 m da fronteira da AC/AD</b>.
+        Ambas as situações indicam risco de exposição e requerem vistoria de campo.
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:13px;color:#66bb6a">✓</span>
+        <span style="font-size:18px;font-weight:700;color:#66bb6a;min-width:28px;text-align:right">${nClear}</span>
+        <span style="font-size:11px;color:#66bb6a;font-weight:600">Seguros</span>
+      </div>
+    </div>
+    ${crossTableHtml}
+    <div style="padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.06)">
+      <div style="display:flex;gap:6px">${actionBtns}</div>
+    </div>
+    <div style="padding:8px 10px">
+      <div style="font-size:10px;color:#78909c;margin-bottom:4px">${revisaoLabel}</div>
+      <div style="background:rgba(255,255,255,.08);height:4px;border-radius:2px">
+        <div id="rtc-revisado-bar" style="background:#66bb6a;height:4px;border-radius:2px;transition:width .3s;width:${revisaoPct}%"></div>
+      </div>
+    </div>
+    ${!urbanaActive ? `<div style="border-top:1px solid rgba(255,179,0,.15);padding:6px 10px;font-size:10px;color:#ffb300;background:rgba(255,179,0,.04);line-height:1.5">
+      💡 Execute <b>② Filtrar por Área Urbana</b> para ver o cruzamento com a exposição.
+    </div>` : ''}`;
+
+  const listEl = document.getElementById('excl-zone-list');
+  if (listEl) listEl.insertBefore(card, listEl.firstChild);
+
+  // Hide the status filter tabs and old excl-progress while card is shown
+  const fr = document.querySelector('.zone-filter-row'); if (fr) fr.style.display = 'none';
+  const ep = document.querySelector('.excl-progress');   if (ep) ep.style.display = 'none';
+}
+
+function _hideResultadoCard() {
+  const card = document.getElementById('resultado-triagem-card');
+  if (card) card.remove();
+  _rtcPriorityIds = [];
+  const fr = document.querySelector('.zone-filter-row'); if (fr) fr.style.display = '';
+  const ep = document.querySelector('.excl-progress');   if (ep) ep.style.display = '';
+}
+
+function _showUrbanaResultCard(nIn, nOut) {
+  const existing = document.getElementById('resultado-triagem-card');
+  if (existing) existing.remove();
+  const total = nIn + nOut;
+  const card = document.createElement('div');
+  card.id = 'resultado-triagem-card';
+  card.style.cssText = 'border:1px solid rgba(255,255,255,.1);border-radius:6px;margin-bottom:8px;overflow:hidden;';
+  card.innerHTML = `
+    <div style="font-size:10px;color:#546e7a;text-transform:uppercase;letter-spacing:.06em;padding:6px 10px;background:rgba(255,255,255,.04);border-bottom:1px solid rgba(255,255,255,.06)">
+      Resultado do Filtro &middot; Área Urbana
+    </div>
+    <div style="padding:8px 10px;font-size:11px;color:#90a4ae;border-bottom:1px solid rgba(255,255,255,.06)">
+      <b>${total}</b> setores analisados
+    </div>
+    <div style="padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.06)">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+        <span style="font-size:13px">🏙</span>
+        <span style="font-size:18px;font-weight:700;color:#ffb300;min-width:28px;text-align:right">${nIn}</span>
+        <span style="font-size:11px;color:#ffb300;font-weight:600">Dentro</span>
+        <span style="font-size:10px;color:#78909c;margin-left:2px">da Área Urbana</span>
+        <button onclick="toggleInfoPopup('urbana-result-info',this);event.stopPropagation()"
+          style="width:15px;height:15px;border-radius:50%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);color:#90a4ae;font-size:9px;cursor:pointer;flex-shrink:0;padding:0;line-height:1;margin-left:2px">i</button>
+      </div>
+      <div id="urbana-result-info" style="display:none;font-size:11px;color:#90a4ae;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);border-radius:4px;padding:6px 8px;margin-bottom:6px;line-height:1.5">
+        Inclui setores cujo polígono AC/AD se encontra <b>dentro da Área Urbana</b> ou a <b>até 50 m de sua fronteira</b>.
+        Esses setores são priorizados por apresentarem maior probabilidade de impacto sobre edificações urbanas.
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:13px;color:#546e7a">—</span>
+        <span style="font-size:18px;font-weight:700;color:#546e7a;min-width:28px;text-align:right">${nOut}</span>
+        <span style="font-size:11px;color:#546e7a;font-weight:600">Fora</span>
+        <span style="font-size:10px;color:#546e7a;margin-left:2px">da Área Urbana (ocultos)</span>
+      </div>
+    </div>
+    <div style="padding:8px 10px">
+      <div style="display:flex;gap:6px">
+        <button onclick="runUrbanaFilter()" style="background:rgba(255,179,0,.08);border:1px solid rgba(255,179,0,.3);color:#ffb300;padding:5px 8px;border-radius:4px;font-size:11px;cursor:pointer;flex:1">
+          <i class="fa fa-times fa-xs"></i>&nbsp;Limpar filtro Área Urbana
+        </button>
+      </div>
+    </div>`;
+  const listEl = document.getElementById('excl-zone-list');
+  if (listEl) listEl.insertBefore(card, listEl.firstChild);
+  const fr = document.querySelector('.zone-filter-row'); if (fr) fr.style.display = 'none';
+  const ep = document.querySelector('.excl-progress');   if (ep) ep.style.display = 'none';
+}
+
+function _updateRtcProgress() {
+  const textEl = document.getElementById('rtc-revisado-text');
+  const barEl  = document.getElementById('rtc-revisado-bar');
+  if (!textEl && !barEl) return;
+  const n = _rtcPriorityIds.length;
+  const reviewed = _rtcPriorityIds.filter(id => reviewedZones.has(id)).length;
+  if (textEl) textEl.textContent = `${reviewed} / ${n}`;
+  if (barEl)  barEl.style.width  = n > 0 ? `${Math.round(reviewed / n * 100)}%` : '0%';
 }
 
 // ── Run exposure analysis for a single zone using cached bldgCache ─
@@ -11717,8 +12184,60 @@ async function _fetchMSTile(url, south, west, north, east) {
 }
 
 async function runExposureFromMSBuildings() {
+  // Toggle off: clear exposure map filter and restore button
+  if (_exposureFilterActive) {
+    _exposureFilterActive = false;
+    document.querySelectorAll('#excl-zone-list .h-zone-block').forEach(b => { b.dataset.expHidden = ''; });
+    const _btn = document.getElementById('btn-ms-buildings');
+    if (_btn) {
+      _btn.disabled = false;
+      _btn.style.background  = 'rgba(66,165,245,.08)';
+      _btn.style.borderColor = 'rgba(66,165,245,.25)';
+      _btn.style.color       = '#42a5f5';
+      _btn.innerHTML = '<i class="fa fa-search-location fa-xs"></i>&nbsp;Verificar Exposição de Edificações';
+    }
+    const _ch = document.getElementById('urbana-cross-hint');
+    if (_ch) _ch.style.display = 'none';
+    _applyMapDimming();
+    _zoneCurrentPage = 1;
+    _applyZoneListFilter();
+    _hideResultadoCard();
+    return;
+  }
+
   if (!Object.keys(acPolyData).length) {
     toast('warn','<i class="fa fa-exclamation-triangle" style="color:#ffa726"></i>&nbsp;AC/AD ainda não geradas. Execute o Passo 6 primeiro.');
+    return;
+  }
+
+  // Reuse cached results: buildings and zone analysis already done — just reapply filter
+  if (Object.keys(exposureResults).length > 0 && buildingGeoJSON) {
+    const _btn = document.getElementById('btn-ms-buildings');
+    if (_btn) {
+      _btn.disabled = false;
+      _btn.style.background  = 'rgba(66,165,245,.18)';
+      _btn.style.borderColor = 'rgba(66,165,245,.6)';
+      _btn.style.color       = '#90caf9';
+      _btn.innerHTML = '<i class="fa fa-check fa-xs"></i>&nbsp;Exposição ✓ — limpar filtro';
+    }
+    _exposureFilterActive = true;
+    const _hintEl = document.getElementById('urbana-cross-hint');
+    if (_hintEl) _hintEl.style.display = _urbanFilterActive ? 'none' : '';
+    const _allIds = Object.keys(acPolyData);
+    const _zIds = _allIds.filter(id => {
+      const b = document.getElementById(`exclblock-${id}`);
+      return !b || b.dataset.urbanaHidden !== '1';
+    });
+    let _nExp = 0, _nNear = 0, _nClr = 0;
+    _zIds.forEach(id => {
+      const r = exposureResults[id];
+      if (r === 'exposed') _nExp++;
+      else if (r === 'nearby') _nNear++;
+      else _nClr++;
+    });
+    _showResultadoCard(_nExp, _nNear, _nClr, _zIds, _urbanFilterActive, _exposureSourceLabel);
+    filterExposure(_nExp + _nNear > 0 ? 'alert' : 'all');
+    toast('ok', '<i class="fa fa-redo fa-xs" style="color:#4caf50"></i>&nbsp;Resultado anterior restaurado');
     return;
   }
 
@@ -11901,8 +12420,8 @@ function _updateExposureBadge(id, status) {
     return;
   }
   const cfg = {
-    exposed: { cls:'exp-exposed', icon:'🏠', title:'Edificações dentro da AC/AD — alto risco de exposição' },
-    nearby:  { cls:'exp-nearby',  icon:'!',  title:'Edificações a menos de 50m da AC/AD — verificar' },
+    exposed: { cls:'exp-exposed', icon:'🏠', title:'Edificações dentro da AC/AD ou a ≤50m — risco de exposição' },
+    nearby:  { cls:'exp-exposed', icon:'🏠', title:'Edificações dentro da AC/AD ou a ≤50m — risco de exposição' },
     clear:   { cls:'exp-clear',   icon:'✓',  title:'Sem edificações detectadas (dentro da cobertura OSM)' }
   }[status];
   if (!cfg) return;
@@ -11924,21 +12443,147 @@ function filterExposure(filter) {
       btn.classList.toggle('active', f === filter);
     }
   });
-  // Show/hide zone blocks
-  let firstVisible = null;
-  Object.keys(exposureResults).forEach(id => {
-    const block = document.getElementById(`exclblock-${id}`);
-    if (!block) return;
-    const status = exposureResults[id];
+  // Set data-exp-hidden on ALL zone blocks (not just those in exposureResults).
+  // Blocks with no exposure result are hidden by any non-'all' filter.
+  document.querySelectorAll('#excl-zone-list .h-zone-block').forEach(block => {
+    const id     = block.id.replace('exclblock-', '');
+    const status = exposureResults[id]; // undefined if zone was not analysed
     let show;
-    if (filter === 'all')    show = true;
+    if (filter === 'all')        show = true;
     else if (filter === 'alert') show = (status === 'exposed' || status === 'nearby');
-    else                     show = (status === filter);
-    block.style.display = show ? '' : 'none';
-    if (show && !firstVisible) firstVisible = block;
+    else                         show = (status === filter);
+    block.dataset.expHidden = show ? '' : '1';
   });
-  // Scroll to first visible result
+  _zoneCurrentPage = 1;
+  _applyZoneListFilter();
+  _applyMapDimming();
+  const firstVisible = Array.from(document.querySelectorAll('#excl-zone-list .h-zone-block')).find(b => b.style.display !== 'none');
   if (firstVisible) firstVisible.scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+async function runUrbanaFilter() {
+  const btn = document.getElementById('btn-urbana-filter');
+  const _btnOff = () => {
+    if (!btn) return;
+    btn.disabled = false;
+    btn.style.background    = 'rgba(255,179,0,.06)';
+    btn.style.borderColor   = 'rgba(255,179,0,.25)';
+    btn.style.color         = '#ffb300';
+    btn.innerHTML = '<i class="fa fa-city fa-xs"></i>&nbsp;Filtrar por Área Urbana';
+  };
+  const _btnOn = () => {
+    if (!btn) return;
+    btn.disabled = false;
+    btn.style.background    = 'rgba(255,179,0,.18)';
+    btn.style.borderColor   = 'rgba(255,179,0,.6)';
+    btn.style.color         = '#ffe082';
+    btn.innerHTML = '<i class="fa fa-city fa-xs"></i>&nbsp;Área Urbana ✓ — limpar filtro';
+  };
+
+  // Toggle off
+  if (_urbanFilterActive) {
+    _urbanFilterActive = false;
+    document.querySelectorAll('#excl-zone-list .h-zone-block').forEach(b => {
+      b.dataset.urbanaHidden = '';
+      // Zones excluded from exposure analysis due to urbana filter have expHidden='1'
+      // but no exposure result — clear it so they reappear in the list
+      const id = b.id.replace('exclblock-', '');
+      if (exposureResults[id] === undefined) b.dataset.expHidden = '';
+      const badge = b.querySelector('.urbana-badge');
+      if (badge) badge.style.display = 'none';
+    });
+    _btnOff();
+    _applyUrbanaMapStyle(false);
+    _zoneCurrentPage = 1;
+    _applyZoneListFilter();
+    if (Object.keys(exposureResults).length > 0) {
+      _refreshExposureBar(); // restore exposure card without urbana context
+    } else {
+      _hideResultadoCard();
+    }
+    return;
+  }
+
+  // Load urban area data
+  if (!_areaUrbana821GeoJSON) {
+    try {
+      const r = await fetch('area_urbana_821.geojson');
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      _areaUrbana821GeoJSON = await r.json();
+    } catch(err) {
+      toast('warn', 'Erro ao carregar Área Urbana: ' + err.message);
+      return;
+    }
+  }
+
+  // Resolve urbana feature(s): by IBGE code if available, else by spatial intersection with AOI
+  let urbanaFeats = [];
+  const code7 = _activeIbgeCode;
+  if (code7) {
+    const f = _areaUrbana821GeoJSON.features.find(f => String(f.properties.code || '') === code7);
+    if (f) urbanaFeats = [f];
+  } else if (aoiLayer) {
+    const aoiGJ = aoiLayer.toGeoJSON();
+    const aoiFeat = aoiGJ.type === 'FeatureCollection' ? aoiGJ.features[0] : aoiGJ;
+    if (aoiFeat) {
+      urbanaFeats = _areaUrbana821GeoJSON.features.filter(f => {
+        try { return turf.booleanIntersects(aoiFeat, f); } catch(_) { return false; }
+      });
+    }
+  }
+  if (urbanaFeats.length === 0) {
+    toast('warn', '<i class="fa fa-exclamation-triangle" style="color:#ffa726"></i>&nbsp;Sem dados de Área Urbana para esta AOI.');
+    return;
+  }
+
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin fa-xs"></i>&nbsp;Filtrando...'; }
+
+  try {
+    const _yield = () => new Promise(r => setTimeout(r, 0));
+    // Buffer each urbana feature by 50 m
+    const urbanaBuffers = urbanaFeats.map(f => {
+      try { return turf.buffer(f, 0.05, {units:'kilometers'}); } catch(_) { return f; }
+    });
+
+    const slopeData = activeSectorSet || SLOPE_AW3D;
+    let nIn = 0, nOut = 0;
+    for (let i = 0; i < slopeData.features.length; i++) {
+      if (i % 20 === 0) await _yield();
+      const f  = slopeData.features[i];
+      const id = f.properties.id;
+      const block = document.getElementById(`exclblock-${id}`);
+      if (!block) continue;
+      let passes = false;
+      for (const buf of urbanaBuffers) {
+        try { if (turf.booleanIntersects(f, buf)) { passes = true; break; } } catch(_) { passes = true; break; }
+      }
+      block.dataset.urbanaHidden = passes ? '' : '1';
+      passes ? nIn++ : nOut++;
+    }
+
+    _applyUrbanaMapStyle(true);
+    _urbanFilterActive = true;
+    _btnOn();
+    // Show urbana badge on zones that passed the filter
+    document.querySelectorAll('#excl-zone-list .h-zone-block').forEach(b => {
+      const badge = b.querySelector('.urbana-badge');
+      if (badge) badge.style.display = b.dataset.urbanaHidden === '1' ? 'none' : '';
+    });
+    _zoneCurrentPage = 1;
+    _applyZoneListFilter();
+    const _h = document.getElementById('urbana-cross-hint');
+    if (_h) _h.style.display = 'none';
+    if (Object.keys(exposureResults).length > 0) {
+      _refreshExposureBar(); // exposure already run — show combined card with cross-table
+    } else {
+      _showUrbanaResultCard(nIn, nOut); // exposure not yet run — show simple urbana card
+    }
+    toast('ok', `<i class="fa fa-city fa-xs" style="color:#ffb300"></i>&nbsp;Área Urbana: ${nIn} setores próximos, ${nOut} ocultados`);
+  } catch(err) {
+    console.error('[runUrbanaFilter]', err);
+    toast('warn', 'Erro no filtro de Área Urbana: ' + err.message);
+    _btnOff();
+  }
 }
 
 function startManualZone() {
@@ -12094,6 +12739,7 @@ function _addManualZoneToSidebar(id, props) {
   const div = document.createElement('div');
   div.className = 'h-zone-block status-target';
   div.id = `exclblock-${id}`;
+  div.dataset.zoneLabel = `${id} — ${props.label}`;
   div.innerHTML = `
     <div class="h-zone-header">
       <div class="h-zone-label" onclick="zoomSector('${id}')" title="${id} — ${props.label}" style="cursor:pointer">
@@ -12101,6 +12747,7 @@ function _addManualZoneToSidebar(id, props) {
           <span style="font-size:10px;background:rgba(255,167,38,.15);color:#ffa726;border:1px solid rgba(255,167,38,.3);padding:1px 4px;border-radius:3px;margin-left:3px">Campo</span>
           <span class="hazard-badge hb-unset" id="hazard-badge-${id}" title="Perigo não avaliado">—</span>
           <span class="exp-badge exp-pending" id="exp-badge-${id}" title="Exposição não verificada">?</span>
+          <span class="urbana-badge" id="urbana-badge-${id}" title="Dentro da Área Urbana ou a ≤50 m da fronteira" style="display:none">🏙</span>
         </span>
       </div>
       <div style="display:flex;align-items:center;gap:4px">
@@ -12153,7 +12800,104 @@ function _addManualZoneToSidebar(id, props) {
         oninput="onCommentInput('${id}', this.value)"></textarea>
     </div>
     ${_fichaHtml(id)}`;
-  container.appendChild(div);
+  const progressDiv = container.querySelector('.excl-progress');
+  if (progressDiv) container.insertBefore(div, progressDiv.nextSibling);
+  else             container.insertBefore(div, container.firstChild);
+  _applyZoneListFilter();
+}
+
+function _initZoneListFilter() {
+  _zoneFilterStatus = 'all';
+  _zoneFilterText   = '';
+  _zoneCurrentPage  = 1;
+  const si = document.getElementById('zone-search-input');
+  if (si) si.value = '';
+  ['all','target','review','excluded'].forEach(s => {
+    const b = document.getElementById(`zfb-${s}`);
+    if (b) b.classList.toggle('zfb-active', s === 'all');
+  });
+  _applyZoneListFilter();
+}
+
+function _applyZoneListFilter() {
+  const allBlocks = Array.from(document.querySelectorAll('#excl-zone-list .h-zone-block'));
+  const textLow   = _zoneFilterText.toLowerCase();
+  const passing   = allBlocks.filter(b => {
+    if (b.dataset.expHidden    === '1') return false;
+    if (b.dataset.urbanaHidden === '1') return false;
+    if (_zoneFilterStatus !== 'all' && !b.classList.contains(`status-${_zoneFilterStatus}`)) return false;
+    if (textLow && !(b.dataset.zoneLabel || '').toLowerCase().includes(textLow)) return false;
+    return true;
+  });
+  const totalPages = Math.max(1, Math.ceil(passing.length / _ZONE_PER_PAGE));
+  if (_zoneCurrentPage > totalPages) _zoneCurrentPage = totalPages;
+  const start = (_zoneCurrentPage - 1) * _ZONE_PER_PAGE;
+  allBlocks.forEach(b => { b.style.display = 'none'; });
+  passing.slice(start, start + _ZONE_PER_PAGE).forEach(b => { b.style.display = ''; });
+  const pgInfo  = document.getElementById('zone-pg-info');
+  const pgFirst = document.getElementById('zone-pg-first');
+  const pgPrev  = document.getElementById('zone-pg-prev');
+  const pgNext  = document.getElementById('zone-pg-next');
+  const pgLast  = document.getElementById('zone-pg-last');
+  if (pgInfo)  pgInfo.textContent = `${_zoneCurrentPage} / ${totalPages}`;
+  if (pgFirst) pgFirst.disabled = (_zoneCurrentPage <= 1);
+  if (pgPrev)  pgPrev.disabled  = (_zoneCurrentPage <= 1);
+  if (pgNext)  pgNext.disabled  = (_zoneCurrentPage >= totalPages);
+  if (pgLast)  pgLast.disabled  = (_zoneCurrentPage >= totalPages);
+  // Tab counts: exclude blocks hidden by either exposure or urbana filter
+  const expVisible = allBlocks.filter(b => b.dataset.expHidden !== '1' && b.dataset.urbanaHidden !== '1');
+  const counts = { all: expVisible.length, target: 0, review: 0, excluded: 0 };
+  expVisible.forEach(b => {
+    if (b.classList.contains('status-target'))        counts.target++;
+    else if (b.classList.contains('status-review'))   counts.review++;
+    else if (b.classList.contains('status-excluded')) counts.excluded++;
+  });
+  const lbl = { all:'Todos', target:'✓ Incl.', review:'? Análise', excluded:'✕ Excl.' };
+  ['all','target','review','excluded'].forEach(s => {
+    const btn = document.getElementById(`zfb-${s}`);
+    if (btn) btn.textContent = `${lbl[s]} (${counts[s]})`;
+  });
+  const bar = document.getElementById('zone-filter-bar');
+  if (bar) bar.style.display = allBlocks.length > 0 ? '' : 'none';
+}
+
+function _zoneFilterBtn(status) {
+  _zoneFilterStatus = status;
+  _zoneCurrentPage  = 1;
+  ['all','target','review','excluded'].forEach(s => {
+    const b = document.getElementById(`zfb-${s}`);
+    if (b) b.classList.toggle('zfb-active', s === status);
+  });
+  _applyZoneListFilter();
+}
+
+function _zoneSearch(val) {
+  _zoneFilterText  = val.trim();
+  _zoneCurrentPage = 1;
+  _applyZoneListFilter();
+}
+
+function _zonePage(dir) {
+  _zoneCurrentPage += dir;
+  _applyZoneListFilter();
+}
+
+function _zonePageFirst() {
+  _zoneCurrentPage = 1;
+  _applyZoneListFilter();
+}
+
+function _zonePageLast() {
+  const allBlocks = Array.from(document.querySelectorAll('#excl-zone-list .h-zone-block'));
+  const textLow   = _zoneFilterText.toLowerCase();
+  const passing   = allBlocks.filter(b => {
+    if (b.dataset.expHidden === '1') return false;
+    if (_zoneFilterStatus !== 'all' && !b.classList.contains(`status-${_zoneFilterStatus}`)) return false;
+    if (textLow && !(b.dataset.zoneLabel || '').toLowerCase().includes(textLow)) return false;
+    return true;
+  });
+  _zoneCurrentPage = Math.max(1, Math.ceil(passing.length / _ZONE_PER_PAGE));
+  _applyZoneListFilter();
 }
 
 function _recomputeZoneACAD(id, feat) {
@@ -12282,14 +13026,12 @@ function runStep6() {
   layerControl.addOverlay(adGroupLayer, 'Área de Dispersão (AD)');
 
   _showMapLeg('acad', true);
-  document.getElementById('badge-s2-ac').textContent=`${acFeats.length} AC · ${adFeats.length} AD`;
-  document.getElementById('badge-s2-ac').className='acc-badge acc-badge-ok';
 
   buildExclusionList(slopeData);
   const _excl = document.getElementById('acc-s2-excl');
   _excl.style.display = 'block'; _excl.classList.add('open');
   document.getElementById('s2-export-wrap').style.display='block';
-  document.getElementById('btn-ms-buildings').style.display='block';
+  document.getElementById('refinar-setores-wrap').style.display='block';
   document.getElementById('btn-ms-buildings').disabled=false;
   document.getElementById('btn-load-geojson').style.display='block';
   document.getElementById('btn-load-geojson').disabled=false;
