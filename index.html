@@ -79,6 +79,7 @@ html,body{height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,sans-seri
 .acc-head{display:flex;align-items:center;justify-content:space-between;
   padding:10px 14px;cursor:pointer;user-select:none;transition:background .15s}
 .acc-head:hover{background:rgba(255,255,255,.06)}
+#acc-s2-transects>.acc-head,#acc-s2-htable>.acc-head,#acc-s2-ac>.acc-head{padding:6px 14px}
 .acc-title{font-size:12px;font-weight:700;letter-spacing:1.2px;color:#b0bec5;text-transform:uppercase;
   display:flex;align-items:center;gap:6px}
 .acc-title i,.acc-title .fa,.acc-title .fas,.acc-title .far{color:#42a5f5}
@@ -250,7 +251,7 @@ html,body{height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,sans-seri
 .src-group{margin-bottom:8px}
 .src-group-ttl{font-size:11px;color:#37474f;text-transform:uppercase;letter-spacing:1px;
   margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid rgba(255,255,255,.04)}
-.radio-item{display:flex;align-items:flex-start;gap:8px;padding:5px 0;
+.radio-item{display:flex;align-items:flex-start;gap:8px;padding:3px 0;
   border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer}
 .radio-item:last-child{border-bottom:none}
 .radio-item input[type=radio]{accent-color:#1565c0;margin-top:2px;flex-shrink:0;cursor:pointer}
@@ -12052,6 +12053,19 @@ function _showUrbanaResultCard(nIn, nOut) {
         <span style="font-size:10px;color:#546e7a;margin-left:2px">da Área Urbana (ocultos)</span>
       </div>
     </div>
+    <div style="padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.06)">
+      <div style="font-size:9px;color:#455a64;font-style:italic;margin-bottom:5px">clique para filtrar</div>
+      <div style="display:flex;gap:6px">
+        <button data-cfk="dentro|all" onclick="_setCrossFilter('dentro','all')"
+          style="flex:1;padding:4px 6px;background:rgba(255,179,0,.08);border:1px solid rgba(255,179,0,.25);border-radius:4px;color:#ffb300;font-size:11px;cursor:pointer;font-weight:700">
+          🏙 Dentro (${nIn})
+        </button>
+        <button data-cfk="fora|all" onclick="_setCrossFilter('fora','all')"
+          style="flex:1;padding:4px 6px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);border-radius:4px;color:#78909c;font-size:11px;cursor:pointer;font-weight:700">
+          — Fora (${nOut})
+        </button>
+      </div>
+    </div>
     <div style="padding:8px 10px">
       <div style="display:flex;gap:6px">
         <button onclick="runUrbanaFilter()" style="background:rgba(255,179,0,.08);border:1px solid rgba(255,179,0,.3);color:#ffb300;padding:5px 8px;border-radius:4px;font-size:11px;cursor:pointer;flex:1">
@@ -12269,7 +12283,16 @@ async function runExposureFromMSBuildings() {
     _applyMapDimming();
     _zoneCurrentPage = 1;
     _applyZoneListFilter();
-    _hideResultadoCard();
+    if (_urbanFilterActive) {
+      // ② is still on — show Dentro/Fora summary card
+      let nIn = 0, nOut = 0;
+      document.querySelectorAll('#excl-zone-list .h-zone-block').forEach(b => {
+        if (b.dataset.urbanaHidden === '1') nOut++; else nIn++;
+      });
+      _showUrbanaResultCard(nIn, nOut);
+    } else {
+      _hideResultadoCard();
+    }
     return;
   }
 
