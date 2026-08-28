@@ -6537,8 +6537,10 @@ function _buildContourLayers(st) {
     const lblsFull = [], lblsThin = [], lblsMinor = [];
     const mkOpts = { interactive: false, keyboard: false };
     const mkIcon = (elev, cls) => L.divIcon({ className: cls, html:`${Math.round(elev)}`, iconSize:null });
-    const STEP_MAJOR = 400;
-    const STEP_MINOR = 150;
+    // グリッド幅ベースの適応ステップ：低解像度DEM（SRTM等）でも高解像度DEM（0.5m等）でも
+    // 視覚的に均一なラベル密度になる（totW÷4 ≈ 1ライン幅あたり最大4ラベル）
+    const STEP_MAJOR = Math.max(20, Math.round(clip.totW / 4));
+    const STEP_MINOR = Math.max(15, Math.round(clip.totW / 6));
     // _onEdgeはクリップ済みビューポート範囲で判定（Pesquisaと同方式）
     const _bW = (clip.seLng - clip.nwLng) * 0.03;
     const _bH = (clip.nwLat - clip.seLat) * 0.03;
