@@ -6522,45 +6522,34 @@ function _buildContourLayers(st) {
     const mkIcon = (elev, cls) => L.divIcon({ className: cls, html:`${Math.round(elev)}`, iconSize:null });
     const STEP_MAJOR = 400;
     const STEP_MINOR = 150;
-    const _bW = (st._seLng - st._nwLng) * 0.03;
-    const _bH = (st._nwLat - st._seLat) * 0.03;
+    // _onEdgeはクリップ済みビューポート範囲で判定（Pesquisaと同方式）
+    const _bW = (clip.seLng - clip.nwLng) * 0.03;
+    const _bH = (clip.nwLat - clip.seLat) * 0.03;
     const _onEdge = ([lng, lat]) =>
-      lng <= st._nwLng + _bW || lng >= st._seLng - _bW ||
-      lat >= st._nwLat - _bH || lat <= st._seLat + _bH;
+      lng <= clip.nwLng + _bW || lng >= clip.seLng - _bW ||
+      lat >= clip.nwLat - _bH || lat <= clip.seLat + _bH;
     cGJ.features.forEach(f => {
       const coords = f.geometry.coordinates;
       if (coords.length < 2) return;
       if (f.properties.major) {
-        // 定期サンプリング（高解像度DEM向け：座標点が多い場合）
-        let addedToFull = false;
-        for (let i = Math.floor(STEP_MAJOR / 2); i < coords.length; i += STEP_MAJOR) {
+        // 短い線でも中点から開始（Pesquisaと同方式：STEP/2 未満なら中点にフォールバック）
+        const startFull = Math.min(Math.floor(STEP_MAJOR / 2), Math.floor(coords.length / 2));
+        for (let i = startFull; i < coords.length; i += STEP_MAJOR) {
           const pt = coords[i];
           if (_onEdge(pt)) continue;
           lblsFull.push(L.marker([pt[1], pt[0]], { ...mkOpts, icon: mkIcon(f.properties.elevation, 'contour-label') }));
-          addedToFull = true;
         }
         if (coords.length >= 10) {
           const mid = coords[Math.floor(coords.length / 2)];
-          if (!_onEdge(mid)) {
-            // 低解像度DEM（SRTM等）では定期サンプリングで点が取れないため中点にフォールバック
-            if (!addedToFull)
-              lblsFull.push(L.marker([mid[1], mid[0]], { ...mkOpts, icon: mkIcon(f.properties.elevation, 'contour-label') }));
+          if (!_onEdge(mid))
             lblsThin.push(L.marker([mid[1], mid[0]], { ...mkOpts, icon: mkIcon(f.properties.elevation, 'contour-label') }));
-          }
         }
       } else {
-        // 主曲線ラベル：同様に中点フォールバックを適用
-        let addedToMinor = false;
-        for (let i = Math.floor(STEP_MINOR / 2); i < coords.length; i += STEP_MINOR) {
+        const startMinor = Math.min(Math.floor(STEP_MINOR / 2), Math.floor(coords.length / 2));
+        for (let i = startMinor; i < coords.length; i += STEP_MINOR) {
           const pt = coords[i];
           if (_onEdge(pt)) continue;
           lblsMinor.push(L.marker([pt[1], pt[0]], { ...mkOpts, icon: mkIcon(f.properties.elevation, 'contour-label contour-label-minor') }));
-          addedToMinor = true;
-        }
-        if (!addedToMinor && coords.length >= 10) {
-          const mid = coords[Math.floor(coords.length / 2)];
-          if (!_onEdge(mid))
-            lblsMinor.push(L.marker([mid[1], mid[0]], { ...mkOpts, icon: mkIcon(f.properties.elevation, 'contour-label contour-label-minor') }));
         }
       }
     });
@@ -6585,7 +6574,16 @@ function _updateZoomVisibility() {
     const neededMinor = curZ >= 19 ? 2 : neededMajor;
     const intervalsChanged = !!_contourComputedBounds &&
       (_contourMajorInt !== neededMajor || _contourMinorInt !== neededMinor);
-    if (!_contourComputedBounds || !_contourComputedBounds.contains(vBounds) || intervalsChanged) {
+    // DEMがビューポートを完全にカバーしない場合、DEMとビューポートの重複範囲のみを確認
+    // （小面積DEMでビューポートが外にはみ出すと contains() が false になり続けて無限ループになるのを防ぐ）
+    const _dst = _contourDemSt;
+    const _effN = Math.min(vBounds.getNorth(), _dst._nwLat);
+    const _effS = Math.max(vBounds.getSouth(), _dst._seLat);
+    const _effW = Math.max(vBounds.getWest(),  _dst._nwLng);
+    const _effE = Math.min(vBounds.getEast(),  _dst._seLng);
+    const _effBounds = (_effN > _effS && _effE > _effW)
+      ? L.latLngBounds([[_effS, _effW], [_effN, _effE]]) : null;
+    if (!_contourComputedBounds || !_effBounds || !_contourComputedBounds.contains(_effBounds) || intervalsChanged) {
       if (!_contourComputedBounds)
         toast('info', '<i class="fa fa-layer-group" style="color:#4fc3f7"></i>&nbsp;Gerando curvas de nível...');
       _scheduleContourRebuild();
