@@ -6531,21 +6531,36 @@ function _buildContourLayers(st) {
       const coords = f.geometry.coordinates;
       if (coords.length < 2) return;
       if (f.properties.major) {
+        // 定期サンプリング（高解像度DEM向け：座標点が多い場合）
+        let addedToFull = false;
         for (let i = Math.floor(STEP_MAJOR / 2); i < coords.length; i += STEP_MAJOR) {
           const pt = coords[i];
           if (_onEdge(pt)) continue;
           lblsFull.push(L.marker([pt[1], pt[0]], { ...mkOpts, icon: mkIcon(f.properties.elevation, 'contour-label') }));
+          addedToFull = true;
         }
         if (coords.length >= 10) {
           const mid = coords[Math.floor(coords.length / 2)];
-          if (!_onEdge(mid))
+          if (!_onEdge(mid)) {
+            // 低解像度DEM（SRTM等）では定期サンプリングで点が取れないため中点にフォールバック
+            if (!addedToFull)
+              lblsFull.push(L.marker([mid[1], mid[0]], { ...mkOpts, icon: mkIcon(f.properties.elevation, 'contour-label') }));
             lblsThin.push(L.marker([mid[1], mid[0]], { ...mkOpts, icon: mkIcon(f.properties.elevation, 'contour-label') }));
+          }
         }
       } else {
+        // 主曲線ラベル：同様に中点フォールバックを適用
+        let addedToMinor = false;
         for (let i = Math.floor(STEP_MINOR / 2); i < coords.length; i += STEP_MINOR) {
           const pt = coords[i];
           if (_onEdge(pt)) continue;
           lblsMinor.push(L.marker([pt[1], pt[0]], { ...mkOpts, icon: mkIcon(f.properties.elevation, 'contour-label contour-label-minor') }));
+          addedToMinor = true;
+        }
+        if (!addedToMinor && coords.length >= 10) {
+          const mid = coords[Math.floor(coords.length / 2)];
+          if (!_onEdge(mid))
+            lblsMinor.push(L.marker([mid[1], mid[0]], { ...mkOpts, icon: mkIcon(f.properties.elevation, 'contour-label contour-label-minor') }));
         }
       }
     });
