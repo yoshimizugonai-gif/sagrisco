@@ -4247,6 +4247,23 @@ function selectDEM(src) {
   checkReady();
   _updateStepper();
 
+  // DEM変更時：Step 3-4（Delimitar AC/AD）の結果は新DEMと不整合になるため即時クリア
+  if (contourMajorLayer || acGroupLayer || transectLayer) {
+    if (_contourBuildTimer)  { clearTimeout(_contourBuildTimer);  _contourBuildTimer  = null; }
+    if (_contourPhase2Timer) { clearTimeout(_contourPhase2Timer); _contourPhase2Timer = null; }
+    if (transectLayer)      { try { layerControl.removeLayer(transectLayer);      map.removeLayer(transectLayer);      } catch(e){} transectLayer      = null; }
+    if (topBotLayer)        { try { layerControl.removeLayer(topBotLayer);        map.removeLayer(topBotLayer);        } catch(e){} topBotLayer        = null; }
+    if (contourMajorLayer)  { try { layerControl.removeLayer(contourMajorLayer);  map.removeLayer(contourMajorLayer);  } catch(e){} contourMajorLayer  = null; }
+    if (contourMinorLayer)  { try { layerControl.removeLayer(contourMinorLayer);  map.removeLayer(contourMinorLayer);  } catch(e){} contourMinorLayer  = null; }
+    if (contourLabelFullLayer)  { try { map.removeLayer(contourLabelFullLayer);  } catch(e){} contourLabelFullLayer  = null; }
+    if (contourLabelThinLayer)  { try { map.removeLayer(contourLabelThinLayer);  } catch(e){} contourLabelThinLayer  = null; }
+    if (contourLabelMinorLayer) { try { map.removeLayer(contourLabelMinorLayer); } catch(e){} contourLabelMinorLayer = null; }
+    if (acGroupLayer) { try { layerControl.removeLayer(acGroupLayer); map.removeLayer(acGroupLayer); } catch(e){} acGroupLayer = null; }
+    if (adGroupLayer) { try { layerControl.removeLayer(adGroupLayer); map.removeLayer(adGroupLayer); } catch(e){} adGroupLayer = null; }
+    _demContours = null; _contourSpatialIdx = null;
+    _contourDemSt = null; _contourComputedBounds = null;
+  }
+
   // Update slope preview label
   if (analysisRun) {
     runAnalysis(); // re-run with new source
