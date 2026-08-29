@@ -8050,10 +8050,20 @@ function _populateCartaHeader(type) {
 async function _captureMapCanvas() {
   const mapEl = document.getElementById('map');
 
-  // パン後はSVGビューポートが古い座標系のままになる。
-  // setView({reset:true}) でmapPane transform(0,0)にリセットし、SVGビューポートを更新。
+  // setView({reset:true}) でmapPane transform(0,0)にリセットしSVGビューポートを更新する。
+  // reset後にタイルが再リクエストされるため、TileLayer の 'load' イベントで完了を待つ。
+  // (固定400msではタイルがまだ leaflet-tile-loading 中のためキャンバスが空白になる)
+  const _activeTL = Object.values(TILES).find(tl => map.hasLayer(tl));
   map.setView(map.getCenter(), map.getZoom(), { animate: false, reset: true });
-  await new Promise(r => setTimeout(r, 400));
+  await new Promise(resolve => {
+    if (_activeTL) {
+      const _done = () => { try { _activeTL.off('load', _done); } catch(e){} resolve(); };
+      _activeTL.once('load', _done);
+      setTimeout(_done, 4000); // fallback
+    } else {
+      setTimeout(resolve, 400);
+    }
+  });
 
   const mapRect = mapEl.getBoundingClientRect();
   const W = mapEl.offsetWidth, H = mapEl.offsetHeight;
@@ -8062,6 +8072,9 @@ async function _captureMapCanvas() {
   out.height = H * 2;
   const ctx = out.getContext('2d');
   ctx.scale(2, 2);
+  // JPEG は透明を黒に変換するため、Leaflet のタイル未読み込み色と合わせてグレーで塗る
+  ctx.fillStyle = '#e5e5e5';
+  ctx.fillRect(0, 0, W, H);
 
   // ① タイルレイヤー
   const tiles = [...mapEl.querySelectorAll(
@@ -8069,7 +8082,10 @@ async function _captureMapCanvas() {
   )];
   await Promise.all(tiles.map(img =>
     img.complete ? Promise.resolve()
-                 : new Promise(r => img.addEventListener('load', r, {once: true}))
+                 : new Promise(r => {
+                     img.addEventListener('load',  r, {once: true});
+                     img.addEventListener('error', r, {once: true});
+                   })
   ));
   tiles.forEach(img => {
     if (!img.complete || img.naturalWidth === 0) return;
@@ -8121,7 +8137,11 @@ async function _captureMapCanvas() {
     await new Promise(resolve => {
       const img = new Image();
       img.onload = () => {
-        ctx.drawImage(img, r.left - mapRect.left, r.top - mapRect.top, r.width, r.height);
+        // try-catch 必須: SVG に fill="url(#id)" パターン参照が含まれる場合、
+        // ブラウザが SecurityError を投げることがある。未補足だと resolve() が
+        // 呼ばれず Promise が永久ハングするため、エラーを補足して必ず resolve する。
+        try { ctx.drawImage(img, r.left - mapRect.left, r.top - mapRect.top, r.width, r.height); }
+        catch(e) { console.warn('SVG drawImage:', e); }
         URL.revokeObjectURL(url);
         resolve();
       };
@@ -8130,21 +8150,10 @@ async function _captureMapCanvas() {
     });
   }
 
-  // ④ マーカーペイン（SP_XXラベル等のdivIcon）
-  if (typeof html2canvas !== 'undefined') {
-    const mPane = map.getPane('markerPane');
-    if (mPane && mPane.children.length > 0) {
-      try {
-        const mc = await html2canvas(mPane, {
-          backgroundColor: null, useCORS: true, allowTaint: true,
-          logging: false, scale: 2,
-        });
-        const mr = mPane.getBoundingClientRect();
-        ctx.drawImage(mc, 0, 0, mc.width, mc.height,
-          mr.left - mapRect.left, mr.top - mapRect.top, mr.width, mr.height);
-      } catch(e) {}
-    }
-  }
+  // ④ マーカーペイン: html2canvas(markerPane) は backgroundColor:null でも
+  //    黒キャンバスを返すことがあり、全面上書きで背景が黒くなるため使用しない。
+  //    SP_XXラベルは Carta-Índice では SVG テキスト（③で取得済み）、
+  //    Perigo/Risco ではキャプチャ前に map.removeLayer 済みのため問題なし。
 
   return out;
 }
