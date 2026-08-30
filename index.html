@@ -3448,19 +3448,32 @@ map.createPane('spLabelPane');
 map.getPane('spLabelPane').style.zIndex = 650;
 map.getPane('spLabelPane').style.pointerEvents = 'none';
 
+const MAPBOX_TOKEN = ''; // Mapboxトークンをここに入力（未設定時はメニューに表示されない）
+
 const TILES = {
-  topo: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
-          { attribution:'© OpenTopoMap', maxNativeZoom:17, maxZoom:21, crossOrigin:'anonymous' }),
-  sat:  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-          { attribution:'© Esri', maxNativeZoom:19, maxZoom:21, crossOrigin:'anonymous' }),
-  osm:  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-          { attribution:'© OpenStreetMap', maxNativeZoom:19, maxZoom:21, crossOrigin:'anonymous' })
+  topo:      L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+               { attribution:'© OpenTopoMap', maxNativeZoom:17, maxZoom:21, crossOrigin:'anonymous' }),
+  satGoogle: L.tileLayer('https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
+               { subdomains:'0123', attribution:'© Google', maxNativeZoom:20, maxZoom:21 }),
+  satMapbox: MAPBOX_TOKEN
+               ? L.tileLayer(`https://api.mapbox.com/styles/v1/mapbox/satellite-v9/tiles/{z}/{x}/{y}?access_token=${MAPBOX_TOKEN}`,
+                   { attribution:'© Mapbox © OpenStreetMap', maxNativeZoom:22, maxZoom:22, tileSize:512, zoomOffset:-1, crossOrigin:'anonymous' })
+               : null,
+  osm:       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+               { attribution:'© OpenStreetMap', maxNativeZoom:19, maxZoom:21, crossOrigin:'anonymous' })
 };
+const _SAT_TILES = [TILES.satGoogle, TILES.satMapbox].filter(Boolean);
+let _prefSatLayer = TILES.satGoogle;
+
 TILES.topo.addTo(map);
-const layerControl = L.control.layers(
-  { 'Topográfico (OpenTopoMap)':TILES.topo, 'Satélite (Esri)':TILES.sat, 'OpenStreetMap':TILES.osm },
-  null, { position:'topright' }
-).addTo(map);
+const _baseMaps = {
+  'Topográfico (OpenTopoMap)': TILES.topo,
+  'Satélite (Google)':         TILES.satGoogle,
+  'OpenStreetMap':             TILES.osm
+};
+if (TILES.satMapbox) _baseMaps['Satélite (Mapbox)'] = TILES.satMapbox;
+const layerControl = L.control.layers(_baseMaps, null, { position:'topright' }).addTo(map);
+map.on('baselayerchange', e => { if (_SAT_TILES.includes(e.layer)) _prefSatLayer = e.layer; });
 L.control.scale({ position:'bottomleft', imperial:false }).addTo(map);
 
 // ── Layer control toggle handlers for 1.2 swipe and 1.4 AC/AD ────────────
@@ -7108,8 +7121,8 @@ function populateStage2() {
 function runSteps3to4() {
   const btn = document.getElementById('btn-gen-transects');
   btn.disabled = true;
-  Object.values(TILES).forEach(t => { if (map.hasLayer(t)) map.removeLayer(t); });
-  TILES.sat.addTo(map);
+  Object.values(TILES).forEach(t => { if (t && map.hasLayer(t)) map.removeLayer(t); });
+  _prefSatLayer.addTo(map);
   const munKey = document.getElementById('munic-sel')?.value || 'barbacena';
   const cacheKey = `${selectedDEM}|${munKey}`;
   const cached = demCache[cacheKey];
@@ -10565,8 +10578,8 @@ async function runAcadComparison() {
     if (slopeRasterLayer) { layerControl.removeLayer(slopeRasterLayer); map.removeLayer(slopeRasterLayer); slopeRasterLayer = null; }
 
     // Switch to satellite base layer
-    [TILES.topo, TILES.osm].forEach(t => { if (map.hasLayer(t)) map.removeLayer(t); });
-    if (!map.hasLayer(TILES.sat)) TILES.sat.addTo(map);
+    Object.values(TILES).forEach(t => { if (t && t !== _prefSatLayer && map.hasLayer(t)) map.removeLayer(t); });
+    if (!map.hasLayer(_prefSatLayer)) _prefSatLayer.addTo(map);
 
     _showAcadComparison();
     _showAcadStats(resA.zoneCount, resB.zoneCount);
