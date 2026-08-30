@@ -8066,7 +8066,14 @@ async function _captureMapCanvas() {
   // パン後はSVGビューポートが古い座標系のままになる。
   // setView({reset:true}) でmapPane transform(0,0)にリセットし、SVGビューポートを更新。
   map.setView(map.getCenter(), map.getZoom(), { animate: false, reset: true });
-  await new Promise(r => setTimeout(r, 400));
+  // タイル読み込み完了を待機（最大4秒フォールバック）
+  await new Promise(r => {
+    const tl = Object.values(TILES).find(t => t && map.hasLayer(t));
+    if (!tl || !tl.isLoading()) { r(); return; }
+    const fb = setTimeout(r, 4000);
+    tl.once('load',      () => { clearTimeout(fb); r(); });
+    tl.once('tileerror', () => { clearTimeout(fb); r(); });
+  });
 
   const mapRect = mapEl.getBoundingClientRect();
   const W = mapEl.offsetWidth, H = mapEl.offsetHeight;
@@ -8075,21 +8082,33 @@ async function _captureMapCanvas() {
   out.height = H * 2;
   const ctx = out.getContext('2d');
   ctx.scale(2, 2);
+  ctx.fillStyle = '#e5e5e5';
+  ctx.fillRect(0, 0, W, H);
 
-  // ① タイルレイヤー
+  // GoogleタイルURLをプロキシURLに変換（Cartaキャプチャ時のみCORS取得）
+  function _proxyUrl(src) {
+    const m = src.match(/\/\/mt(\d)\.google\.com\/vt\/lyrs=s&x=(\d+)&y=(\d+)&z=(\d+)/);
+    return m ? `${window.location.origin}/api/google-tile?z=${m[4]}&y=${m[3]}&x=${m[2]}&s=${m[1]}` : null;
+  }
+
+  // ① タイルレイヤー（GoogleタイルはCORS対応プロキシ経由で再取得）
   const tiles = [...mapEl.querySelectorAll(
     '.leaflet-tile-pane img.leaflet-tile:not(.leaflet-tile-loading)'
   )];
-  await Promise.all(tiles.map(img =>
-    img.complete ? Promise.resolve()
-                 : new Promise(r => img.addEventListener('load', r, {once: true}))
-  ));
-  tiles.forEach(img => {
-    if (!img.complete || img.naturalWidth === 0) return;
-    const r = img.getBoundingClientRect();
-    try { ctx.drawImage(img, r.left - mapRect.left, r.top - mapRect.top, r.width, r.height); }
-    catch(e) {}
-  });
+  await Promise.all(tiles.map(img => {
+    const pSrc = _proxyUrl(img.src);
+    return new Promise(r => {
+      const t = new Image();
+      if (pSrc) t.crossOrigin = 'anonymous';
+      t.onload = () => {
+        const rect = img.getBoundingClientRect();
+        try { ctx.drawImage(t, rect.left - mapRect.left, rect.top - mapRect.top, rect.width, rect.height); } catch(e) {}
+        r();
+      };
+      t.onerror = () => r();
+      t.src = pSrc || img.src;
+    });
+  }));
 
   // ② 衛星画像オーバーレイ（opticalPane — L.imageOverlay が <img> としてレンダリングされる）
   const optPane = map.getPane('opticalPane');
@@ -8134,29 +8153,13 @@ async function _captureMapCanvas() {
     await new Promise(resolve => {
       const img = new Image();
       img.onload = () => {
-        ctx.drawImage(img, r.left - mapRect.left, r.top - mapRect.top, r.width, r.height);
+        try { ctx.drawImage(img, r.left - mapRect.left, r.top - mapRect.top, r.width, r.height); } catch(e) {}
         URL.revokeObjectURL(url);
         resolve();
       };
       img.onerror = () => { URL.revokeObjectURL(url); resolve(); };
       img.src = url;
     });
-  }
-
-  // ④ マーカーペイン（SP_XXラベル等のdivIcon）
-  if (typeof html2canvas !== 'undefined') {
-    const mPane = map.getPane('markerPane');
-    if (mPane && mPane.children.length > 0) {
-      try {
-        const mc = await html2canvas(mPane, {
-          backgroundColor: null, useCORS: true, allowTaint: true,
-          logging: false, scale: 2,
-        });
-        const mr = mPane.getBoundingClientRect();
-        ctx.drawImage(mc, 0, 0, mc.width, mc.height,
-          mr.left - mapRect.left, mr.top - mapRect.top, mr.width, mr.height);
-      } catch(e) {}
-    }
   }
 
   return out;

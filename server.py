@@ -7,6 +7,7 @@ import pathlib
 import socketserver
 import tempfile
 import threading
+import time
 import urllib.parse
 import urllib.request
 import uuid
@@ -14,6 +15,12 @@ import zipfile
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 
 PORT = 8888
+
+# ── Google タイルキャッシュ（Carta キャプチャ用プロキシ） ───────────────────────
+_tile_cache: dict = {}
+_tile_cache_lock = threading.Lock()
+_TILE_CACHE_MAX = 500    # 最大500タイル（約25MB）
+_TILE_CACHE_TTL = 86400  # 24時間
 
 # ── UP42 ジオメトリ正規化ヘルパー ─────────────────────────────────────────────
 def _aoi_bbox_polygon(geom: dict) -> dict:
@@ -329,6 +336,8 @@ class SAGRISCOHandler(SimpleHTTPRequestHandler):
     def do_GET(self) -> None:
         if self.path.startswith('/proxy?url='):
             self._handle_proxy()
+        elif self.path.startswith('/api/google-tile'):
+            self._handle_google_tile()
         elif self.path.startswith('/up42/status'):
             self._handle_up42_status()
         elif self.path.startswith('/up42/download'):
@@ -358,6 +367,39 @@ class SAGRISCOHandler(SimpleHTTPRequestHandler):
 
     def _send_error(self, message: str, status: int = 500) -> None:
         self._send_json({'error': message}, status)
+
+    # ── /api/google-tile（Cartaキャプチャ用・CORS付きプロキシ） ─────────────────
+    def _handle_google_tile(self) -> None:
+        qs  = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+        z, y, x = qs.get('z',['0'])[0], qs.get('y',['0'])[0], qs.get('x',['0'])[0]
+        s   = qs.get('s', ['0'])[0]
+        key = (s, z, y, x)
+        now = time.time()
+        with _tile_cache_lock:
+            cached = _tile_cache.get(key)
+        if cached and (now - cached[0]) < _TILE_CACHE_TTL:
+            data, ct = cached[1], cached[2]
+        else:
+            url = f'https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}'
+            try:
+                req = urllib.request.Request(
+                    url, headers={'User-Agent': 'Mozilla/5.0 (compatible; SAGRISCO/1.0)'})
+                with urllib.request.urlopen(req, timeout=30) as resp:
+                    data = resp.read()
+                    ct   = resp.headers.get('Content-Type', 'image/jpeg')
+            except Exception:
+                self.send_response(502); self.end_headers(); return
+            with _tile_cache_lock:
+                if len(_tile_cache) >= _TILE_CACHE_MAX:
+                    del _tile_cache[min(_tile_cache, key=lambda k: _tile_cache[k][0])]
+                _tile_cache[key] = (now, data, ct)
+        self.send_response(200)
+        self.send_header('Content-Type', ct)
+        self.send_header('Content-Length', str(len(data)))
+        self.send_header('Cache-Control', 'public, max-age=86400')
+        self._cors()
+        self.end_headers()
+        self.wfile.write(data)
 
     # ── /proxy?url=... ────────────────────────────────────────────────────────
     def _handle_proxy(self) -> None:

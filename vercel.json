@@ -8,6 +8,9 @@
     },
     "api/buildings.js": {
       "maxDuration": 60
+    },
+    "api/google-tile.js": {
+      "maxDuration": 15
     }
   }
 }
