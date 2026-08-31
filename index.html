@@ -403,6 +403,13 @@ html,body{height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,sans-seri
 
 /* ── MAP ── */
 #map{flex:1;z-index:1}
+#gmap-date-btn{position:absolute;bottom:26px;right:10px;z-index:1000;
+  background:rgba(16,26,42,0.84);border:1px solid rgba(100,160,255,0.28);border-radius:4px;
+  padding:3px 9px 3px 7px;font-size:11px;color:#90caf9;cursor:pointer;text-decoration:none;
+  display:none;align-items:center;gap:5px;backdrop-filter:blur(3px);
+  font-family:'Segoe UI',system-ui,sans-serif;line-height:1.6;transition:background .15s,color .15s;
+  white-space:nowrap}
+#gmap-date-btn:hover{background:rgba(30,55,95,0.94);color:#bbdefb;text-decoration:none}
 
 /* ── RIGHT PANEL ── */
 #rpanel{width:0;background:#111e2e;border-left:1px solid rgba(255,255,255,.07);
@@ -1489,6 +1496,10 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
                 <button id="btn-ms-buildings" onclick="runExposureFromMSBuildings()" style="flex:1;padding:5px 8px;background:rgba(66,165,245,.08);border:1px solid rgba(66,165,245,.25);border-radius:4px;color:#42a5f5;font-size:11px;cursor:pointer;text-align:left">
                   <i class="fa fa-search-location fa-xs"></i>&nbsp;Verificar Exposição de Edificações
                 </button>
+                <button id="btn-load-geojson" onclick="triggerBuildingUpload()" style="display:none;background:rgba(156,39,176,.12);border:1px solid rgba(156,39,176,.35);border-radius:50%;width:18px;height:18px;font-size:10px;color:#ce93d8;cursor:pointer;align-items:center;justify-content:center;padding:0;flex-shrink:0" title="Carregar Edificações (GeoJSON)"><i class="fa fa-folder-open fa-xs"></i></button>
+                <button id="btn-bldg-map-vis" onclick="_toggleAllBldgView()" disabled
+                  style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:50%;width:18px;height:18px;font-size:10px;color:#455a64;cursor:not-allowed;display:flex;align-items:center;justify-content:center;padding:0;flex-shrink:0;opacity:0.35"
+                  title="Ver todas as edificações (execute ① primeiro)"><i class="fa fa-eye fa-xs"></i></button>
                 <button onclick="toggleInfoPopup('ms-bldg-info',this);event.stopPropagation()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:50%;width:18px;height:18px;font-size:10px;color:#90a4ae;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;flex-shrink:0" title="Sobre os dados de edificações"><i class="fa fa-info fa-xs"></i></button>
               </div>
             </div>
@@ -1516,6 +1527,13 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
                   style="flex:1;padding:5px 8px;background:rgba(255,179,0,.06);border:1px solid rgba(255,179,0,.25);border-radius:4px;color:#ffb300;font-size:11px;cursor:pointer;text-align:left">
                   <i class="fa fa-city fa-xs"></i>&nbsp;Filtrar por Área Urbana
                 </button>
+                <button id="btn-load-urbana" onclick="triggerUrbanaUpload()"
+                  style="background:rgba(255,179,0,.06);border:1px solid rgba(255,179,0,.25);border-radius:50%;width:18px;height:18px;font-size:10px;color:#ffb300;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;flex-shrink:0"
+                  title="Carregar Área Urbana personalizada (GeoJSON)"><i class="fa fa-folder-open fa-xs"></i></button>
+                <input type="file" id="urbana-file-input" accept=".geojson,.json" style="display:none" onchange="onUrbanaFileSelected(event)">
+                <button id="btn-urbana-map-vis" onclick="_toggleUrbanaHighlightVisibility()" disabled
+                  style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:50%;width:18px;height:18px;font-size:10px;color:#455a64;cursor:not-allowed;display:flex;align-items:center;justify-content:center;padding:0;flex-shrink:0;opacity:0.35"
+                  title="Mostrar/ocultar limite da Área Urbana no mapa"><i class="fa fa-eye fa-xs"></i></button>
                 <button onclick="toggleInfoPopup('urbana-filter-info',this);event.stopPropagation()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:50%;width:18px;height:18px;font-size:10px;color:#90a4ae;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;flex-shrink:0" title="Sobre o filtro de Área Urbana"><i class="fa fa-info fa-xs"></i></button>
               </div>
               <div id="urbana-filter-info" style="display:none;font-size:11px;color:#78909c;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:4px;padding:6px 8px;margin-top:4px;line-height:1.7">
@@ -1525,9 +1543,6 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
               </div>
             </div>
           </div>
-          <button id="btn-load-geojson" onclick="triggerBuildingUpload()" style="display:none;width:100%;padding:6px 10px;margin-bottom:6px;background:rgba(156,39,176,.08);border:1px solid rgba(156,39,176,.25);border-radius:4px;color:#ce93d8;font-size:12px;cursor:pointer;text-align:left">
-            <i class="fa fa-folder-open fa-xs"></i>&nbsp;Carregar Edificações (GeoJSON)
-          </button>
           <input type="file" id="building-file-input" accept=".geojson,.json" style="display:none" onchange="onBuildingFileSelected(event)">
           <div id="selected-zone-banner" style="display:none">
             <i class="fa fa-map-marker-alt fa-xs" style="color:#ffa726;flex-shrink:0"></i>
@@ -3476,6 +3491,30 @@ const layerControl = L.control.layers(_baseMaps, null, { position:'topright' }).
 map.on('baselayerchange', e => { if (_SAT_TILES.includes(e.layer)) _prefSatLayer = e.layer; });
 L.control.scale({ position:'bottomleft', imperial:false }).addTo(map);
 
+// ── Google Maps 撮影日確認ボタン ──────────────────────────────────────────
+(function() {
+  const btn = document.createElement('a');
+  btn.id = 'gmap-date-btn';
+  btn.target = '_blank';
+  btn.rel = 'noopener noreferrer';
+  btn.title = 'Abrir no Google Maps para verificar a data da imagem de satélite';
+  btn.innerHTML = '<i class="fa fa-satellite fa-xs"></i><span>Verificar data da imagem ↗</span>';
+  map.getContainer().appendChild(btn);
+
+  function _updateGmapDateBtn() {
+    const isGoogle = map.hasLayer(TILES.satGoogle);
+    btn.style.display = isGoogle ? 'flex' : 'none';
+    if (isGoogle) {
+      const c = map.getCenter();
+      const z = Math.min(20, Math.max(14, map.getZoom()));
+      btn.href = `https://www.google.com/maps/@${c.lat.toFixed(6)},${c.lng.toFixed(6)},${z}z/data=!3m1!1e3`;
+    }
+  }
+
+  map.on('baselayerchange moveend zoomend', _updateGmapDateBtn);
+  _updateGmapDateBtn();
+})();
+
 // ── Layer control toggle handlers for 1.2 swipe and 1.4 AC/AD ────────────
 // Show divider only when both swipe overlays are visible
 function _syncCmpDivider() {
@@ -3575,6 +3614,15 @@ map.on('overlayremove', e => {
             <div style="font-size:10px;color:#ffb74d;font-weight:700;margin:5px 0 2px">B — Proposta</div>
             <div class="map-leg-item"><div class="map-leg-sw" style="background:rgba(240,96,0,.25);border:2px solid #f06000"></div>Área Crítica — AC</div>
             <div class="map-leg-item"><div class="map-leg-sw" style="background:transparent;border:2px dashed #e65100"></div>Área de Dispersão — AD</div>
+          </div>
+          <div id="map-leg-urbana" style="display:none" class="map-leg-sec">
+            <div class="map-leg-sec-title"><i class="fa fa-city fa-xs" style="color:#ffb300"></i>&nbsp;Á. Urbana × Setores</div>
+            <div class="map-leg-item"><div class="map-leg-sw" style="background:rgba(211,47,47,.30);border:2px solid #d32f2f"></div>Dentro da Área Urbana</div>
+            <div class="map-leg-item"><div class="map-leg-sw" style="background:rgba(144,164,174,.12);border:1px solid #78909c"></div>Fora (filtrado)</div>
+            <div class="map-leg-item" style="margin-top:4px">
+              <div style="width:16px;flex-shrink:0;border-top:2.5px dashed #ffb300;opacity:.9;margin-top:5px"></div>
+              <span style="margin-left:4px">Limite da Área Urbana</span>
+            </div>
           </div>
         </div>`;
   L.DomEvent.disableClickPropagation(div);
@@ -3789,7 +3837,7 @@ function _showMapLeg(section, visible) {
   if (el) el.style.display = visible ? 'block' : 'none';
   const panel = document.getElementById('map-legend-panel');
   if (!panel) return;
-  const anyVisible = ['aoi','slope','acad','acad-cmp'].some(s => {
+  const anyVisible = ['aoi','slope','acad','acad-cmp','urbana'].some(s => {
     const e = document.getElementById('map-leg-' + s);
     return e && e.style.display !== 'none';
   });
@@ -3983,10 +4031,13 @@ function _updateMunic821Info(ibgeCode) {
 }
 
 // ── Área Urbana (IBGE Setores Censitários — perímetro urbano) ────────────────
-let _areaUrbana821GeoJSON = null;
-let _urbanFilterActive    = false;
+let _areaUrbana821GeoJSON  = null;
+let _customUrbanaGeoJSON   = null; // user-uploaded urban area override
+let _urbanFilterActive     = false;
+let _urbanaHighlightLayer  = null;
 let _exposureFilterActive = false;
 let _hiddenBldgLayers    = [];
+let _showAllBldgActive   = false; // "Ver todas as edificações" toggle
 let _crossFilterSel      = null; // 'dentro|alert' etc., null = no cross-filter
 let _rtcPriorityIds = []; // zone IDs that are exposed or nearby (for Revisão counter)
 
@@ -5739,21 +5790,29 @@ function _applyMapDimming() {
     }
   });
 
-  // Building polygons: remove non-hit buildings from map when filter active, restore when off
+  // Building polygons: filter active → hide or mute non-hit; filter off → restore all
   if (buildingLayer) {
     if (_exposureFilterActive) {
-      // Restore any previously hidden first to avoid double-hiding on re-calls
       _hiddenBldgLayers.forEach(l => buildingLayer.addLayer(l));
       _hiddenBldgLayers = [];
-      // Remove sublayers with no zone contact (reduces DOM elements during pan/zoom)
       buildingLayer.eachLayer(l => {
-        if (!l.feature?.properties?._hitZone) _hiddenBldgLayers.push(l);
+        if (!l.feature?.properties?._hitZone) {
+          if (_showAllBldgActive) {
+            l.setStyle({ color:'#cfd8dc', weight:1.5, fillColor:'#90a4ae', fillOpacity:0.25, opacity:0.85 });
+          } else {
+            _hiddenBldgLayers.push(l);
+          }
+        } else {
+          l.setStyle({ color:'#ffcc02', weight:1, fillColor:'#ffcc02', fillOpacity:0.3, opacity:0.85 });
+        }
       });
-      _hiddenBldgLayers.forEach(l => buildingLayer.removeLayer(l));
+      if (!_showAllBldgActive) _hiddenBldgLayers.forEach(l => buildingLayer.removeLayer(l));
     } else {
-      // Restore all previously removed sublayers
       _hiddenBldgLayers.forEach(l => buildingLayer.addLayer(l));
       _hiddenBldgLayers = [];
+      buildingLayer.eachLayer(l => {
+        l.setStyle({ color:'#ffcc02', weight:1, fillColor:'#ffcc02', fillOpacity:0.3, opacity:0.85 });
+      });
     }
   }
 }
@@ -10981,6 +11040,8 @@ function buildExclusionList(slopeData) {
   // Reset both filter states when a new zone set is loaded
   _urbanFilterActive = false;
   _exposureFilterActive = false;
+  _showAllBldgActive = false;
+  { const _vb = document.getElementById('btn-bldg-map-vis'); if (_vb) { _vb.disabled=true; _vb.style.opacity='0.35'; _vb.style.cursor='not-allowed'; _vb.style.color='#455a64'; _vb.style.borderColor='rgba(255,255,255,.08)'; _vb.querySelector('i').className='fa fa-eye fa-xs'; _vb.title='Ver todas as edificações (execute ① primeiro)'; } }
   _clearCrossFilter();
   _hideResultadoCard();
   const _rh = document.getElementById('urbana-cross-hint');
@@ -11154,7 +11215,9 @@ function findNextUnreviewed() {
   if (!slopeData) return null;
   return slopeData.features.find(f => {
     const fid = f.properties.id;
-    return !reviewedZones.has(fid) && fid !== currentReviewId;
+    if (reviewedZones.has(fid) || fid === currentReviewId) return false;
+    const block = document.getElementById(`exclblock-${fid}`);
+    return block && block.style.display !== 'none';
   }) || null;
 }
 
@@ -11814,6 +11877,7 @@ async function _runBuildingExposureAnalysis(features, sourceLabel, btn) {
     btn.innerHTML = '<i class="fa fa-check fa-xs"></i>&nbsp;Exposição ✓ — limpar filtro';
   }
   _exposureFilterActive = true;
+  { const _vb = document.getElementById('btn-bldg-map-vis'); if (_vb) { _vb.disabled=false; _vb.style.opacity='1'; _vb.style.cursor='pointer'; _vb.style.color='#42a5f5'; _vb.style.borderColor='rgba(66,165,245,.35)'; _vb.querySelector('i').className='fa fa-eye fa-xs'; _vb.title='Ver todas as edificações'; } }
   // Show hint only when ② is NOT yet active; when ② was already active the card already has the cross-table.
   const _hint = document.getElementById('urbana-cross-hint');
   if (_hint) _hint.style.display = _urbanFilterActive ? 'none' : '';
@@ -12067,6 +12131,77 @@ function _hideResultadoCard() {
   const ep = document.querySelector('.excl-progress');   if (ep) ep.style.display = '';
 }
 
+function triggerUrbanaUpload() {
+  document.getElementById('urbana-file-input').click();
+}
+
+async function onUrbanaFileSelected(event) {
+  const file = event.target.files[0];
+  event.target.value = '';
+  if (!file) return;
+  const btn = document.getElementById('btn-load-urbana');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin fa-xs"></i>'; }
+  try {
+    const text = await file.text();
+    const geojson = JSON.parse(text);
+    // Normalize to FeatureCollection
+    let feats;
+    if (geojson.type === 'FeatureCollection') {
+      feats = geojson.features;
+    } else if (geojson.type === 'Feature') {
+      feats = [geojson];
+    } else if (geojson.type === 'Polygon' || geojson.type === 'MultiPolygon') {
+      feats = [{ type:'Feature', geometry: geojson, properties:{} }];
+    } else {
+      throw new Error('Formato não reconhecido (esperado FeatureCollection / Feature / Polygon)');
+    }
+    if (feats.length === 0) throw new Error('GeoJSON sem feições');
+    _customUrbanaGeoJSON = { type:'FeatureCollection', features: feats };
+    const label = file.name.length > 22 ? file.name.slice(0,20)+'…' : file.name;
+    if (btn) {
+      btn.style.background  = 'rgba(255,179,0,.28)';
+      btn.style.borderColor = 'rgba(255,179,0,.7)';
+      btn.title = `Á. Urbana: ${label} — clique para substituir`;
+    }
+    toast('ok', `<i class="fa fa-city fa-xs" style="color:#ffb300"></i>&nbsp;Área Urbana personalizada: <b>${label}</b> (${feats.length} feição(ões))`);
+  } catch(err) {
+    toast('warn', `<i class="fa fa-exclamation-triangle" style="color:#ef5350"></i>&nbsp;Erro ao carregar GeoJSON: ${err.message}`);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-folder-open fa-xs"></i>'; }
+  }
+}
+
+function _toggleUrbanaHighlightVisibility() {
+  if (!_urbanaHighlightLayer) return;
+  const btn = document.getElementById('btn-urbana-map-vis');
+  const isVisible = map.hasLayer(_urbanaHighlightLayer);
+  if (isVisible) {
+    map.removeLayer(_urbanaHighlightLayer);
+    if (btn) { btn.querySelector('i').className = 'fa fa-eye-slash fa-xs'; btn.title = 'Exibir limite da Área Urbana'; }
+  } else {
+    _urbanaHighlightLayer.addTo(map);
+    if (btn) { btn.querySelector('i').className = 'fa fa-eye fa-xs'; btn.title = 'Ocultar limite da Área Urbana'; }
+  }
+}
+
+function _toggleAllBldgView() {
+  _showAllBldgActive = !_showAllBldgActive;
+  if (_exposureFilterActive) _applyMapDimming();
+  const btn = document.getElementById('btn-bldg-map-vis');
+  if (!btn) return;
+  if (_showAllBldgActive) {
+    btn.querySelector('i').className = 'fa fa-eye-slash fa-xs';
+    btn.style.color       = '#90caf9';
+    btn.style.borderColor = 'rgba(66,165,245,.5)';
+    btn.title = 'Ocultar edificações não expostas';
+  } else {
+    btn.querySelector('i').className = 'fa fa-eye fa-xs';
+    btn.style.color       = '#42a5f5';
+    btn.style.borderColor = 'rgba(66,165,245,.35)';
+    btn.title = 'Ver todas as edificações';
+  }
+}
+
 function _showUrbanaResultCard(nIn, nOut) {
   const existing = document.getElementById('resultado-triagem-card');
   if (existing) existing.remove();
@@ -12193,7 +12328,7 @@ async function onBuildingFileSelected(event) {
   event.target.value = '';
   if (!file) return;
   const btn = document.getElementById('btn-load-geojson');
-  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin fa-xs"></i>&nbsp;Carregando...'; }
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin fa-xs"></i>'; }
   try {
     const text = await file.text();
     const geojson = JSON.parse(text);
@@ -12209,7 +12344,7 @@ async function onBuildingFileSelected(event) {
   } catch(err) {
     toast('warn', `<i class="fa fa-exclamation-triangle" style="color:#ef5350"></i>&nbsp;Erro ao carregar GeoJSON: ${err.message}`);
   } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-folder-open fa-xs"></i>&nbsp;Carregar Edificações (GeoJSON)'; }
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-folder-open fa-xs"></i>'; }
   }
 }
 
@@ -12316,6 +12451,8 @@ async function runExposureFromMSBuildings() {
   // Toggle off: clear exposure map filter and restore button
   if (_exposureFilterActive) {
     _exposureFilterActive = false;
+    _showAllBldgActive = false;
+    { const _vb = document.getElementById('btn-bldg-map-vis'); if (_vb) { _vb.disabled=true; _vb.style.opacity='0.35'; _vb.style.cursor='not-allowed'; _vb.style.color='#455a64'; _vb.style.borderColor='rgba(255,255,255,.08)'; _vb.querySelector('i').className='fa fa-eye fa-xs'; _vb.title='Ver todas as edificações (execute ① primeiro)'; } }
     _clearCrossFilter();
     document.querySelectorAll('#excl-zone-list .h-zone-block').forEach(b => { b.dataset.expHidden = ''; });
     const _btn = document.getElementById('btn-ms-buildings');
@@ -12360,6 +12497,7 @@ async function runExposureFromMSBuildings() {
       _btn.innerHTML = '<i class="fa fa-check fa-xs"></i>&nbsp;Exposição ✓ — limpar filtro';
     }
     _exposureFilterActive = true;
+    { const _vb = document.getElementById('btn-bldg-map-vis'); if (_vb) { _vb.disabled=false; _vb.style.opacity='1'; _vb.style.cursor='pointer'; _vb.style.color='#42a5f5'; _vb.style.borderColor='rgba(66,165,245,.35)'; _vb.querySelector('i').className='fa fa-eye fa-xs'; _vb.title='Ver todas as edificações'; } }
     const _hintEl = document.getElementById('urbana-cross-hint');
     if (_hintEl) _hintEl.style.display = _urbanFilterActive ? 'none' : '';
     const _allIds = Object.keys(acPolyData);
@@ -12633,6 +12771,10 @@ async function runUrbanaFilter() {
       if (badge) badge.style.display = 'none';
     });
     _btnOff();
+    if (_urbanaHighlightLayer) { map.removeLayer(_urbanaHighlightLayer); _urbanaHighlightLayer = null; }
+    _showMapLeg('urbana', false);
+    const _vb2 = document.getElementById('btn-urbana-map-vis');
+    if (_vb2) { _vb2.disabled=true; _vb2.style.opacity='0.35'; _vb2.style.cursor='not-allowed'; _vb2.style.color='#455a64'; _vb2.style.borderColor='rgba(255,255,255,.08)'; _vb2.querySelector('i').className='fa fa-eye fa-xs'; _vb2.title='Mostrar/ocultar limite da Área Urbana no mapa'; }
     _applyUrbanaMapStyle(false);
     _zoneCurrentPage = 1;
     _applyZoneListFilter();
@@ -12644,31 +12786,33 @@ async function runUrbanaFilter() {
     return;
   }
 
-  // Load urban area data
-  if (!_areaUrbana821GeoJSON) {
-    try {
-      const r = await fetch('area_urbana_821.geojson');
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      _areaUrbana821GeoJSON = await r.json();
-    } catch(err) {
-      toast('warn', 'Erro ao carregar Área Urbana: ' + err.message);
-      return;
-    }
-  }
-
-  // Resolve urbana feature(s): by IBGE code if available, else by spatial intersection with AOI
+  // Resolve urbana feature(s): custom upload takes priority over built-in 821-city data
   let urbanaFeats = [];
-  const code7 = _activeIbgeCode;
-  if (code7) {
-    const f = _areaUrbana821GeoJSON.features.find(f => String(f.properties.code || '') === code7);
-    if (f) urbanaFeats = [f];
-  } else if (aoiLayer) {
-    const aoiGJ = aoiLayer.toGeoJSON();
-    const aoiFeat = aoiGJ.type === 'FeatureCollection' ? aoiGJ.features[0] : aoiGJ;
-    if (aoiFeat) {
-      urbanaFeats = _areaUrbana821GeoJSON.features.filter(f => {
-        try { return turf.booleanIntersects(aoiFeat, f); } catch(_) { return false; }
-      });
+  if (_customUrbanaGeoJSON) {
+    urbanaFeats = _customUrbanaGeoJSON.features;
+  } else {
+    if (!_areaUrbana821GeoJSON) {
+      try {
+        const r = await fetch('area_urbana_821.geojson');
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        _areaUrbana821GeoJSON = await r.json();
+      } catch(err) {
+        toast('warn', 'Erro ao carregar Área Urbana: ' + err.message);
+        return;
+      }
+    }
+    const code7 = _activeIbgeCode;
+    if (code7) {
+      const f = _areaUrbana821GeoJSON.features.find(f => String(f.properties.code || '') === code7);
+      if (f) urbanaFeats = [f];
+    } else if (aoiLayer) {
+      const aoiGJ = aoiLayer.toGeoJSON();
+      const aoiFeat = aoiGJ.type === 'FeatureCollection' ? aoiGJ.features[0] : aoiGJ;
+      if (aoiFeat) {
+        urbanaFeats = _areaUrbana821GeoJSON.features.filter(f => {
+          try { return turf.booleanIntersects(aoiFeat, f); } catch(_) { return false; }
+        });
+      }
     }
   }
   if (urbanaFeats.length === 0) {
@@ -12703,6 +12847,15 @@ async function runUrbanaFilter() {
 
     _applyUrbanaMapStyle(true);
     _urbanFilterActive = true;
+    // Draw urbana boundary outline on map
+    if (_urbanaHighlightLayer) map.removeLayer(_urbanaHighlightLayer);
+    _urbanaHighlightLayer = L.geoJSON(
+      { type:'FeatureCollection', features: urbanaFeats },
+      { style:{ color:'#ffb300', weight:2.5, fillOpacity:0.05, fillColor:'#ffb300', opacity:0.85, dashArray:'6 4' } }
+    ).addTo(map);
+    _showMapLeg('urbana', true);
+    const _vb = document.getElementById('btn-urbana-map-vis');
+    if (_vb) { _vb.disabled=false; _vb.style.opacity='1'; _vb.style.cursor='pointer'; _vb.style.color='#ffb300'; _vb.style.borderColor='rgba(255,179,0,.35)'; _vb.querySelector('i').className='fa fa-eye fa-xs'; _vb.title='Ocultar limite da Área Urbana'; }
     _btnOn();
     // Show urbana badge on zones that passed the filter
     document.querySelectorAll('#excl-zone-list .h-zone-block').forEach(b => {
@@ -13177,7 +13330,7 @@ function runStep6() {
   document.getElementById('s2-export-wrap').style.display='block';
   document.getElementById('refinar-setores-wrap').style.display='block';
   document.getElementById('btn-ms-buildings').disabled=false;
-  document.getElementById('btn-load-geojson').style.display='block';
+  document.getElementById('btn-load-geojson').style.display='flex';
   document.getElementById('btn-load-geojson').disabled=false;
   document.getElementById('btn-novo-setor').style.display='block';
   manualZoneCounter=0; exposureResults={}; hazardIndicia={}; hazardLevel={}; vulnerabilityLevel={}; riskLevel={};
