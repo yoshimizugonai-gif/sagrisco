@@ -3408,7 +3408,12 @@ async function runRealDEMAnalysis(setStep, colorScheme = null) {
   const totalHa   = (above25 * areaPerPx).toFixed(1);
   // Use valid (non-NoData) pixel count as denominator so pctAOI is not diluted
   const validPx   = workGrid.reduce((s, v) => s + (v > DEM_NODATA + 1 ? 1 : 0), 0) || slope.length;
-  const pctAOI    = (above25 / validPx * 100).toFixed(1);
+  // Prefer the real AOI polygon area as denominator (the analyzed grid is the AOI's
+  // bounding box, which can be much larger than an irregular polygon's true area).
+  const aoiPolyKm2 = _calcAoiAreaKm2(true);
+  const pctAOI    = aoiPolyKm2
+    ? ((above25 * areaPerPx / 100) / aoiPolyKm2 * 100).toFixed(1)
+    : (above25 / validPx * 100).toFixed(1);
 
   setStep(93, 'Renderizando mapa de declividade crítica...');
   const dataUrl = renderSlopeCanvas(slope, totH, totW, colorScheme || selectedDEM);
@@ -3420,7 +3425,7 @@ async function runRealDEMAnalysis(setStep, colorScheme = null) {
     '<i class="fa fa-mountain fa-xs" style="color:#ffa726"></i>&nbsp;Declividade θ ≥ 25°');
 
   const _imgBounds = [[seLat, nwLng], [nwLat, seLng]];
-  return { totalHa, pctAOI, cellM: cellM < 1 ? Number(cellM.toFixed(2)) : Math.round(cellM), tileCount, _dataUrl: dataUrl, _imgBounds,
+  return { totalHa, pctAOI, above25Px: above25, validPx, areaPerPxHa: areaPerPx, aoiPolyKm2, cellM: cellM < 1 ? Number(cellM.toFixed(2)) : Math.round(cellM), tileCount, _dataUrl: dataUrl, _imgBounds,
            _grid: workGrid, _slope: slope, _totW: totW, _totH: totH,
            _nwLat: nwLat, _nwLng: nwLng, _seLat: seLat, _seLng: seLng };
 }
@@ -4741,13 +4746,13 @@ function _onCmpMunicSelect() {
   if (btn) btn.disabled = !mSel.value;
 }
 
-function _calcAoiAreaKm2() {
+function _calcAoiAreaKm2(precise = false) {
   if (!aoiLayer || typeof aoiLayer.toGeoJSON !== 'function') return null;
   const gj = aoiLayer.toGeoJSON();
   const features = gj.features || [gj];
   let total = 0;
   features.forEach(f => { if (f.geometry) total += _up42PolyAreaKm2(f.geometry); });
-  return total > 0 ? Math.round(total) : null;
+  return total > 0 ? (precise ? total : Math.round(total)) : null;
 }
 
 const _AOI_MAX_KM2 = 2000;
@@ -5334,9 +5339,9 @@ function _buildCmpStats(statsA, statsB) {
       <tr><td style="color:#78909c">Fonte</td>
         <td style="padding:1px 4px;color:#cfd8dc;text-align:center">${_cmpDetectedLabelA || metaA.name.split('(')[0].trim()}</td>
         <td style="padding:1px 4px;color:#cfd8dc;text-align:center">${_cmpDetectedLabelB || metaB.name}</td></tr>
-      <tr><td style="color:#78909c">Área θ≥25° (ha) <span style="font-size:8px;color:#37474f">†</span></td>
-        <td style="padding:1px 4px;color:#cfd8dc;text-align:center">${fmt(statsA.totalHa)}</td>
-        <td style="padding:1px 4px;color:#cfd8dc;text-align:center">${fmt(statsB.totalHa)}</td></tr>
+      <tr><td style="color:#78909c">Área θ≥25° (km²) <span style="font-size:8px;color:#37474f">†</span></td>
+        <td style="padding:1px 4px;color:#cfd8dc;text-align:center">${fmt(statsA.totalHa/100)}</td>
+        <td style="padding:1px 4px;color:#cfd8dc;text-align:center">${fmt(statsB.totalHa/100)}</td></tr>
       <tr><td style="color:#78909c">% da AOI <span style="font-size:8px;color:#37474f">†</span></td>
         <td style="padding:1px 4px;color:#cfd8dc;text-align:center">${statsA.pctAOI}%</td>
         <td style="padding:1px 4px;color:#cfd8dc;text-align:center">${statsB.pctAOI}%</td></tr>
@@ -5455,6 +5460,7 @@ function _updateCmpStatsOverlay(statsA, statsB) {
 
   const fmt = v => Number(v.toFixed(1)).toLocaleString('pt-BR');
   const pct = v => (v * 100).toFixed(0) + '%';
+  const fmtKm2 = v => Number((v/100).toFixed(3)).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:3});
 
   const wA_pct  = (total_px > 0 ? _cmpCountA  / total_px * 100 : 0).toFixed(1);
   const wAB_pct = (total_px > 0 ? _cmpCountAB / total_px * 100 : 0).toFixed(1);
@@ -5471,20 +5477,20 @@ function _updateCmpStatsOverlay(statsA, statsB) {
         <i class="fa fa-compress-arrows-alt fa-xs"></i> Calculado na área de interseção A∩B
       </div>
       <table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:7px">
-        <tr><td style="color:#78909c;padding:1px 0">A ∩ B (ha) ${iBtn('ab_ha')}</td>
-          <td colspan="2" style="padding:1px 4px;color:#ce93d8;text-align:center">${fmt(haAB)}</td></tr>
+        <tr><td style="color:#78909c;padding:1px 0">A ∩ B (km²) ${iBtn('ab_ha')}</td>
+          <td colspan="2" style="padding:1px 4px;color:#ce93d8;text-align:center">${fmtKm2(haAB)}</td></tr>
         <tr><td style="color:#78909c;padding:1px 0">A ∩ B / B ${iBtn('ab_ratio')}</td>
           <td colspan="2" style="padding:1px 4px;color:#ce93d8;text-align:center">${pct(fracAB_ofB)}</td></tr>
-        <tr><td style="color:#78909c;padding:1px 0">Apenas B (ha) ${iBtn('b_only')}</td>
-          <td colspan="2" style="padding:1px 4px;color:#ffb74d;text-align:center">${fmt(haBonly)}</td></tr>
+        <tr><td style="color:#78909c;padding:1px 0">Apenas B (km²) ${iBtn('b_only')}</td>
+          <td colspan="2" style="padding:1px 4px;color:#ffb74d;text-align:center">${fmtKm2(haBonly)}</td></tr>
       </table>
       <div style="font-size:9px;color:#546e7a;margin-bottom:3px">
         Distribuição θ≥25° ${iBtn('bar')}
       </div>
       <div style="display:flex;height:11px;border-radius:3px;overflow:hidden;width:100%">
-        <div style="width:${wA_pct}%;background:rgba(30,160,220,0.75)" title="Apenas A: ${fmt(haAonly)} ha"></div>
-        <div style="width:${wAB_pct}%;background:rgba(150,50,200,0.85)" title="A∩B: ${fmt(haAB)} ha"></div>
-        <div style="width:${wB_pct}%;background:rgba(240,80,0,0.75)" title="Apenas B: ${fmt(haBonly)} ha"></div>
+        <div style="width:${wA_pct}%;background:rgba(30,160,220,0.75)" title="Apenas A: ${fmtKm2(haAonly)} km²"></div>
+        <div style="width:${wAB_pct}%;background:rgba(150,50,200,0.85)" title="A∩B: ${fmtKm2(haAB)} km²"></div>
+        <div style="width:${wB_pct}%;background:rgba(240,80,0,0.75)" title="Apenas B: ${fmtKm2(haBonly)} km²"></div>
       </div>
       <div style="display:flex;justify-content:space-between;font-size:8px;margin-top:3px">
         <span style="color:rgba(80,180,230,0.9)">Apenas A</span>
@@ -5492,9 +5498,9 @@ function _updateCmpStatsOverlay(statsA, statsB) {
         <span style="color:rgba(240,120,30,0.9)">Apenas B</span>
       </div>
       <div style="display:flex;justify-content:space-between;font-size:8px;color:#78909c;margin-top:1px">
-        <span>${fmt(haAonly)} ha</span>
-        <span>${fmt(haAB)} ha</span>
-        <span>${fmt(haBonly)} ha</span>
+        <span>${fmtKm2(haAonly)} km²</span>
+        <span>${fmtKm2(haAB)} km²</span>
+        <span>${fmtKm2(haBonly)} km²</span>
       </div>
     </div>`;
   panel.appendChild(sec);
@@ -13453,7 +13459,7 @@ function showResults(realStats = null) {
 
   _showMapLeg('slope', !!realStats);
 
-  let totalAreaHa, pctAOI, sectorCount, candidateCount, sectorListHTML;
+  let totalAreaHa, pctAOI, sectorCount, candidateCount, sectorListHTML, pctFormulaHTML = '', srtmNoiseInfoHTML = '';
   const cmpSrtm = SLOPE_SRTM.features.reduce((s,f)=>s+f.properties.area_ha,0).toFixed(1);
   const cmpAw3d = SLOPE_AW3D.features.reduce((s,f)=>s+f.properties.area_ha,0).toFixed(1);
 
@@ -13464,6 +13470,26 @@ function showResults(realStats = null) {
     pctAOI         = realStats.pctAOI;
     sectorCount    = '—';
     candidateCount = '—';
+    if (selectedDEM === 'srtm') {
+      srtmNoiseInfoHTML = `
+        <button onclick="toggleInfoPopup('res-crit-srtm-info',this);event.stopPropagation()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:50%;width:16px;height:16px;font-size:10px;color:#90a4ae;cursor:pointer;line-height:1;display:inline-flex;align-items:center;justify-content:center;padding:0;flex-shrink:0;margin-left:4px;vertical-align:middle" title="Por que o valor muda a cada execução?"><i class="fa fa-info fa-xs"></i></button>`;
+    }
+    if (realStats.above25Px != null && realStats.validPx) {
+      const _critKm2 = (totalAreaHa / 100).toFixed(3);
+      if (realStats.aoiPolyKm2) {
+        pctFormulaHTML = `
+          <div style="font-size:11px;font-weight:600;color:#90a4ae;line-height:1.5;margin-top:10px;padding:6px 8px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:4px">
+            ${_critKm2.replace('.', ',')} km² (θ≥25°) ÷ ${realStats.aoiPolyKm2.toLocaleString('pt-BR', {maximumFractionDigits:2})} km² (área do polígono AOI) × 100 = ${pctAOI}%
+          </div>`;
+      } else {
+        const _gridKm2 = (realStats.validPx * realStats.areaPerPxHa / 100).toFixed(2);
+        pctFormulaHTML = `
+          <div style="font-size:11px;font-weight:600;color:#90a4ae;line-height:1.5;margin-top:10px;padding:6px 8px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:4px">
+            ${_critKm2.replace('.', ',')} km² (θ≥25°) ÷ ${_gridKm2.replace('.', ',')} km² (grade analisada) × 100 = ${pctAOI}%<br>
+            <span style="font-size:9px;font-weight:400;color:#546e7a">Área do polígono AOI indisponível — usando bbox da grade como aproximação</span>
+          </div>`;
+      }
+    }
     sectorListHTML = `
       <div style="font-size:12px;color:#546e7a;line-height:1.8;padding:6px 0">
         <i class="fa fa-info-circle" style="color:#42a5f5"></i>&nbsp;
@@ -13563,7 +13589,7 @@ function showResults(realStats = null) {
         <b style="color:#90a4ae">DEM:</b> ${meta.name}<br>
         <b style="color:#90a4ae">Resolução:</b> ${meta.resLabel} (equiv. ${meta.equiv})<br>
         <b style="color:#90a4ae">Precisão vertical:</b> ${meta.precision}<br>
-        <b style="color:#90a4ae">AOI:</b> Barbacena, MG (~747 km²)<br>
+        <b style="color:#90a4ae">AOI:</b> ${document.getElementById('aoi-munic')?.textContent || '—'} (${document.getElementById('aoi-area')?.textContent || '—'})<br>
         <b style="color:#90a4ae">Critério GIDES:</b> θ ≥ 25° e H ≥ 5m<br>
         <b style="color:#90a4ae">Fonte:</b> ${sourceLabel}
       </div>
@@ -13571,27 +13597,20 @@ function showResults(realStats = null) {
 
 
     <div class="res-card">
-      <div class="res-card-ttl"><i class="fa fa-chart-bar fa-xs"></i>&nbsp;Área Crítica (θ ≥ 25°, H ≥ 5m)</div>
-      <div class="res-stat-big">${totalAreaHa} ha</div>
+      <div class="res-card-ttl"><i class="fa fa-chart-bar fa-xs"></i>&nbsp;Área Crítica (θ ≥ 25°, H ≥ 5m)${srtmNoiseInfoHTML}</div>
+      ${selectedDEM === 'srtm' ? `
+      <div id="res-crit-srtm-info" style="display:none;font-size:11px;color:#78909c;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:4px;padding:6px 8px;margin:6px 0;line-height:1.7">
+        O valor pode variar levemente a cada nova execução com a mesma AOI.<br>
+        Para simular a precisão vertical real do SRTM (<b style="color:#ffa726">±16 m</b>), aplicamos um ruído aleatório calibrado sobre a grade de elevação a cada execução — isso não é um erro.<br>
+        Fontes como <b>Copernicus</b> e <b>AW3D</b> usam suavização determinística e não apresentam essa variação entre execuções.
+      </div>` : ''}
+      <div class="res-stat-big">${(totalAreaHa/100).toFixed(3)} km²</div>
       <div class="res-stat-lbl">área com declividade crítica detectada</div>
-      <div class="res-grid" style="margin-top:12px">
-        <div class="res-grid-item">
-          <div class="res-grid-num" style="color:#ffa726">${sectorCount}</div>
-          <div class="res-grid-lbl">setores de encosta</div>
-        </div>
-        <div class="res-grid-item">
-          <div class="res-grid-num" style="color:#ef5350">${candidateCount}</div>
-          <div class="res-grid-lbl">candidatos AC</div>
-        </div>
-        <div class="res-grid-item">
-          <div class="res-grid-num" style="color:#66bb6a">${historicalLayer ? historicalLayer.getLayers().length : '—'}</div>
-          <div class="res-grid-lbl">dados históricos</div>
-        </div>
-        <div class="res-grid-item">
-          <div class="res-grid-num" style="color:#42a5f5">${pctAOI}%</div>
-          <div class="res-grid-lbl">da AOI em risco</div>
-        </div>
+      <div class="res-grid-item" style="margin-top:12px">
+        <div class="res-grid-num" style="color:#42a5f5">${pctAOI}%</div>
+        <div class="res-grid-lbl">da AOI em risco</div>
       </div>
+      ${pctFormulaHTML}
     </div>
 
     <div class="res-card">
@@ -13608,7 +13627,7 @@ function showResults(realStats = null) {
   setTimeout(() => { if (_s2) _s2.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 150);
 
   const msg = realStats
-    ? `<b>Etapa 1 concluída!</b> Área θ ≥ 25°: <b>${totalAreaHa} ha</b> (${pctAOI}% da AOI).`
+    ? `<b>Etapa 1 concluída!</b> Área θ ≥ 25°: <b>${(totalAreaHa/100).toFixed(3)} km²</b> (${pctAOI}% da AOI).`
     : `<b>Etapa 1 concluída!</b> ${sectorCount} setores com θ ≥ 25° identificados.`;
   toast('ok', `<i class="fa fa-check-circle" style="color:#4caf50"></i>&nbsp;${msg}`);
 }
