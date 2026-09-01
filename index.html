@@ -4922,6 +4922,11 @@ async function runComparisonAnalysis() {
   const derivedBbox = _deriveCmpBbox();
   const savedAoiLayer   = aoiLayer;
   const savedAoiDefined = aoiDefined;
+  // Real AOI polygon area, captured before prepSlot() swaps aoiLayer for a bounds-only
+  // stub on API slots (that stub has no toGeoJSON(), so _calcAoiAreaKm2() inside
+  // runRealDEMAnalysis() would otherwise return null and pctAOI would silently fall back
+  // to the grid-pixel-count formula instead of the real-polygon-area one).
+  const realAoiPolyKm2  = _calcAoiAreaKm2(true);
 
   // Helper: set up buffers and selectedDEM for one slot before calling runRealDEMAnalysis
   const prepSlot = (slot) => {
@@ -4952,6 +4957,11 @@ async function runComparisonAnalysis() {
     titleEl.textContent = `A — ${_cmpDetectedLabelA || DEM_META[cmpSrcA].name}`;
     overlay.classList.add('show');
     let statsA = await runRealDEMAnalysis(setStep, 'cmp_ref');
+    // Restore the real AOI polygon area/pctAOI (see realAoiPolyKm2 comment above)
+    if (cmpSrcTypeA !== 'geotiff' && realAoiPolyKm2) {
+      statsA.aoiPolyKm2 = realAoiPolyKm2;
+      statsA.pctAOI     = ((statsA.above25Px * statsA.areaPerPxHa / 100) / realAoiPolyKm2 * 100).toFixed(1);
+    }
     // Trim API raster to remove tile overhang
     if (cmpSrcTypeA !== 'geotiff' && cmpSrcTypeB === 'geotiff' && _cmpWgsBoundsB) {
       setStep(100, 'Recortando A para a extensão do arquivo B...');
@@ -4973,6 +4983,11 @@ async function runComparisonAnalysis() {
     prepSlot('b');
     titleEl.textContent = `B — ${_cmpDetectedLabelB || DEM_META[cmpSrcB].name}`;
     let statsB = await runRealDEMAnalysis(setStep, 'cmp_prop');
+    // Restore the real AOI polygon area/pctAOI (see realAoiPolyKm2 comment above)
+    if (cmpSrcTypeB !== 'geotiff' && realAoiPolyKm2) {
+      statsB.aoiPolyKm2 = realAoiPolyKm2;
+      statsB.pctAOI     = ((statsB.above25Px * statsB.areaPerPxHa / 100) / realAoiPolyKm2 * 100).toFixed(1);
+    }
     // Trim API raster to GeoTIFF file extent (removes tile overhang)
     if (cmpSrcTypeB !== 'geotiff' && cmpSrcTypeA === 'geotiff' && _cmpWgsBoundsA) {
       setStep(100, 'Recortando B para a extensão do arquivo A...');
