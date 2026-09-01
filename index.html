@@ -5095,7 +5095,13 @@ async function _clipCmpStatsToRef(stats, refBounds) {
   let steepCount = 0;
   for (let i = 0; i < newSlope.length; i++) if (newSlope[i] >= 25) steepCount++;
   const newTotalHa = (steepCount * cellHa).toFixed(1);
-  const newPctAOI  = (steepCount / (clipH * clipW) * 100).toFixed(1);
+  // Prefer the real AOI polygon area as denominator (same approach as runRealDEMAnalysis,
+  // 2026-09-01 fc1d74d) instead of the clipped grid's pixel count, which overstates the
+  // denominator — and understates pctAOI — for irregularly shaped AOIs.
+  const aoiPolyKm2 = stats.aoiPolyKm2;
+  const newPctAOI  = aoiPolyKm2
+    ? ((steepCount * cellHa / 100) / aoiPolyKm2 * 100).toFixed(1)
+    : (steepCount / (clipH * clipW) * 100).toFixed(1);
 
   return {
     ...stats,
