@@ -717,6 +717,7 @@ body.fs-large .proc-pct,body.fs-large .lock-msg,body.fs-large .map-search-ctrl i
 body.fs-large .edit-toolbar-zone,body.fs-large .lpop h4{font-size:17px!important}
 body.fs-large .lp-tab i{font-size:17px!important}
 
+body.fs-large *[style*="font-size:8px"],body.fs-large *[style*="font-size:8.5px"],
 body.fs-large *[style*="font-size:9px"],body.fs-large *[style*="font-size:9.5px"],
 body.fs-large *[style*="font-size:10px"]{font-size:14px!important}
 body.fs-large *[style*="font-size:11px"]{font-size:15px!important}
@@ -1614,7 +1615,7 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
 
     <!-- PESQUISA: comparison results (shown when Pesquisa tab is active) -->
     <div id="rp-research" style="display:none;flex:1;overflow-y:auto;padding:14px">
-      <div id="cmp-status-msg" style="display:none;font-size:10px;color:#90a4ae;margin-bottom:8px;
+      <div id="cmp-status-msg" style="display:none;font-size:12px;color:#90a4ae;margin-bottom:8px;
         padding:4px 6px;background:rgba(0,0,0,.15);border-radius:3px;line-height:1.6"></div>
 
       <div id="cmp-stats-panel" style="display:none;margin-bottom:8px;padding:8px;
@@ -1622,36 +1623,14 @@ body.fs-large *[style*="font-size:13px"]{font-size:17px!important}
         font-size:10px;line-height:1.8;color:#90a4ae">
       </div>
 
-      <!-- Comparação AC/AD -->
-      <div class="acc-section" id="acc-acad-cmp">
-        <div class="acc-head" id="acc-acad-cmp-head" onclick="toggleAcc('acc-acad-cmp'); if(document.getElementById('acc-acad-cmp').classList.contains('open')) _syncAcadFromCmp()">
-          <div class="acc-title">
-            <i class="fa fa-object-group fa-xs"></i> Comparação AC/AD
-            <span class="acc-badge" id="badge-acad-cmp" style="background:rgba(255,255,255,.07);color:#546e7a">Opcional</span>
-          </div>
-          <i class="fa fa-chevron-down acc-arrow"></i>
-        </div>
-        <div class="acc-body">
-          <div style="font-size:10px;color:#78909c;margin-bottom:8px;line-height:1.6">
-            <i class="fa fa-link fa-xs" style="color:#42a5f5"></i>
-            Compara as zonas AC/AD dos DEMs A/B carregados na Seção 1.2.
-          </div>
-          <div id="acad-cmp-src-panel" style="margin-bottom:8px">
-            <div style="font-size:10px;color:#37474f;padding:8px;background:rgba(0,0,0,.15);border-radius:4px;line-height:1.7;text-align:center">
-              <i class="fa fa-arrow-left fa-xs"></i>
-              Configure os dados A/B (GeoTIFF) na Seção 1.2
-            </div>
-          </div>
-          <button id="acad-cmp-btn" onclick="runAcadComparison()" disabled
-            style="width:100%;padding:6px 10px;background:rgba(103,58,183,.08);border:1px solid rgba(103,58,183,.3);border-radius:4px;color:#b39ddb;font-size:12px;cursor:not-allowed;opacity:.5">
-            <i class="fa fa-play fa-xs"></i>&nbsp;Analisar e Comparar
-          </button>
-          <div id="acad-cmp-msg" style="display:none;margin-top:6px;font-size:10px;color:#78909c"></div>
-          <div id="acad-cmp-stats" style="display:none;margin-top:6px"></div>
-          <button id="acad-cmp-clear-btn" onclick="clearAcadComparison()" style="display:none;width:100%;margin-top:6px;padding:4px 8px;background:none;border:1px solid rgba(255,255,255,.12);border-radius:3px;color:#546e7a;font-size:10px;cursor:pointer">
-            <i class="fa fa-times fa-xs"></i>&nbsp;Limpar comparação
-          </button>
-        </div>
+      <!-- Continuação do resultado acima: detalhamento por zonas AC/AD.
+           Executado automaticamente logo após "Executar Comparação" (ver
+           runComparisonAnalysis()) — não é uma etapa manual separada, por isso
+           não tem cabeçalho de acordeão nem botão próprio. Mostrar/ocultar é
+           controlado pelo botão "AC/AD" no grupo "Mostrar no mapa" acima. -->
+      <div id="acc-acad-cmp">
+        <div id="acad-cmp-msg" style="display:none;margin-top:6px;font-size:10px;color:#78909c"></div>
+        <div id="acad-cmp-stats" style="display:none;margin-top:6px"></div>
       </div>
     </div><!-- /rp-research -->
   </div>
@@ -1946,6 +1925,8 @@ let _cmpZoneLegendEl = null;         // zone legend DOM element
 let _cmpLayerProxyA  = null;         // dummy layerGroup for layer control toggle — slot A
 let _cmpLayerProxyB  = null;         // dummy layerGroup for layer control toggle — slot B
 let _cmpViewMode     = 'swipe';      // 'swipe' | 'zones'
+let _cmpDemVisible     = true;       // "Declividade" (swipe raster) show/hide toggle
+let _cmpContourVisible = true;       // "Curvas + Rótulos" show/hide toggle
 let _cmpCountA       = 0;            // display-res pixel count: A only
 let _cmpCountB       = 0;            // display-res pixel count: B only
 let _cmpCountAB      = 0;            // display-res pixel count: A ∩ B
@@ -2030,6 +2011,8 @@ let _acadAcB = null; let _acadAdB = null;           // {id: ring[]} AC/AD from a
 let _acadLayerA = null;                             // L.layerGroup for slot A AC/AD polygons
 let _acadLayerB = null;                             // L.layerGroup for slot B AC/AD polygons
 let _acadLegendEl = null;                           // legend DOM element
+let _acadCleared  = false;                          // true after "Limpar comparação" until re-shown
+let _acadZoneCountA = 0; let _acadZoneCountB = 0;   // resA/resB.zoneCount, cached for instant re-show
 let editMarkersArr   = [];     // [{marker, type:'top'|'bot'}] for current edit zone
 let editToolbarCtrl  = null;
 let manualZoneCounter   = 0;
@@ -3762,18 +3745,14 @@ function _switchLpTab(tab) {
   const acadCmp = document.getElementById('acc-acad-cmp');
   if (acadCmp) acadCmp.style.display = tab === 'research' ? '' : 'none';
 
-  // In Pesquisa: hide toggle button, acc-dem header, analyze button, acad-cmp header
+  // In Pesquisa: hide toggle button, acc-dem header, analyze button
   const isResearch = tab === 'research';
   const cmpWrap      = document.getElementById('cmp-toggle-wrap');
   const accDemHead   = document.getElementById('acc-dem-head');
   const accEncostas  = document.getElementById('acc-encostas');
-  const acadCmpHead  = document.getElementById('acc-acad-cmp-head');
-  const acadCmpBtn = document.getElementById('acad-cmp-btn');
   if (cmpWrap)      cmpWrap.style.display     = isResearch ? 'none' : '';
   if (accDemHead)   accDemHead.style.display  = isResearch ? 'none' : '';
   if (accEncostas)  accEncostas.style.display = isResearch ? 'none' : '';
-  if (acadCmpHead) acadCmpHead.style.display= isResearch ? 'none' : '';
-  if (acadCmpBtn)  acadCmpBtn.style.display = isResearch ? 'none' : '';
 
   if (tab === 'main') {
     // Restore right panel to main workflow content
@@ -4906,6 +4885,12 @@ async function runComparisonAnalysis() {
     return;
   }
 
+  // Reset "Mostrar no mapa" visibility toggles for the new comparison —
+  // _buildCmpStats() below always renders these buttons in the "on" state
+  _cmpDemVisible = true;
+  _cmpContourVisible = true;
+  _acadCleared = false;
+
   const btn     = document.getElementById('cmp-run-btn');
   const msg     = document.getElementById('cmp-status-msg');
   const overlay = document.getElementById('processing-overlay');
@@ -5036,9 +5021,7 @@ async function runComparisonAnalysis() {
     msg.innerHTML = `<i class="fa fa-check-circle" style="color:#81c784"></i>`
       + ` Comparação concluída — use o controle deslizante no mapa.`;
 
-    // Auto-expand and run AC/AD comparison after swipe analysis completes
-    const acadSec = document.getElementById('acc-acad-cmp');
-    if (acadSec && !acadSec.classList.contains('open')) acadSec.classList.add('open');
+    // Run AC/AD comparison automatically as the continuation of this same result
     _syncAcadFromCmp();
     await runAcadComparison();
     _buildCmpContourLayers();
@@ -5336,16 +5319,37 @@ function _buildCmpStats(statsA, statsB) {
   panel.innerHTML = `
     <div style="display:flex;gap:4px;margin-bottom:8px">
       <button id="cmp-btn-swipe" onclick="_setCmpViewMode('swipe')"
-        style="flex:1;padding:4px 6px;border-radius:4px;font-size:9px;font-family:inherit;cursor:pointer;
+        style="flex:1;padding:5px 6px;border-radius:4px;font-size:13px;font-family:inherit;cursor:pointer;
                border:1px solid rgba(103,58,183,.5);color:#ce93d8;
                background:rgba(103,58,183,.3)">
         <i class="fa fa-arrows-alt-h"></i> Declividade
       </button>
       <button id="cmp-btn-zones" onclick="_setCmpViewMode('zones')"
-        style="flex:1;padding:4px 6px;border-radius:4px;font-size:9px;font-family:inherit;cursor:pointer;
+        style="flex:1;padding:5px 6px;border-radius:4px;font-size:13px;font-family:inherit;cursor:pointer;
                border:1px solid rgba(103,58,183,.3);color:#90a4ae;
                background:transparent">
-        <i class="fa fa-layer-group"></i> Zonas AC/AD
+        <i class="fa fa-layer-group"></i> Zonas θ≥25°
+      </button>
+    </div>
+    <div style="font-size:9px;color:#546e7a;margin-bottom:3px">Mostrar no mapa:</div>
+    <div style="display:flex;gap:4px;margin-bottom:8px">
+      <button id="cmp-btn-dem-vis" onclick="_toggleCmpDemVisibility()"
+        style="flex:1;padding:5px 6px;border-radius:4px;font-size:13px;font-family:inherit;cursor:pointer;
+               border:1px solid rgba(66,165,245,.35);color:#42a5f5;
+               background:rgba(66,165,245,.08)">
+        <i class="fa fa-eye fa-xs"></i> MDE
+      </button>
+      <button id="cmp-btn-contour-vis" onclick="_toggleCmpContourVisibility()"
+        style="flex:1;padding:5px 6px;border-radius:4px;font-size:13px;font-family:inherit;cursor:pointer;
+               border:1px solid rgba(66,165,245,.35);color:#42a5f5;
+               background:rgba(66,165,245,.08)">
+        <i class="fa fa-eye fa-xs"></i> Curvas
+      </button>
+      <button id="cmp-btn-acad-vis" onclick="_toggleAcadCleared()"
+        style="flex:1;padding:5px 6px;border-radius:4px;font-size:13px;font-family:inherit;cursor:pointer;
+               border:1px solid rgba(66,165,245,.35);color:#42a5f5;
+               background:rgba(66,165,245,.08)">
+        <i class="fa fa-eye fa-xs"></i> AC/AD
       </button>
     </div>
     <div style="font-weight:600;color:#b39ddb;margin-bottom:5px;font-size:10px;letter-spacing:.3px">
@@ -5360,13 +5364,13 @@ function _buildCmpStats(statsA, statsB) {
       <tr><td style="color:#78909c">Fonte</td>
         <td style="padding:1px 4px;color:#cfd8dc;text-align:center">${_cmpDetectedLabelA || metaA.name.split('(')[0].trim()}</td>
         <td style="padding:1px 4px;color:#cfd8dc;text-align:center">${_cmpDetectedLabelB || metaB.name}</td></tr>
-      <tr><td style="color:#78909c">Área θ≥25° (km²) <span style="font-size:8px;color:#37474f">†</span></td>
+      <tr><td style="color:#78909c">Área θ≥25° (km²) <span style="font-size:9px;color:#37474f">†</span></td>
         <td style="padding:1px 4px;color:#cfd8dc;text-align:center">${fmt(statsA.totalHa/100)}</td>
         <td style="padding:1px 4px;color:#cfd8dc;text-align:center">${fmt(statsB.totalHa/100)}</td></tr>
-      <tr><td style="color:#78909c">% da AOI <span style="font-size:8px;color:#37474f">†</span></td>
+      <tr><td style="color:#78909c">% da AOI <span style="font-size:9px;color:#37474f">†</span></td>
         <td style="padding:1px 4px;color:#cfd8dc;text-align:center">${statsA.pctAOI}%</td>
         <td style="padding:1px 4px;color:#cfd8dc;text-align:center">${statsB.pctAOI}%</td></tr>
-      <tr><td colspan="3" style="padding:3px 0 1px;font-size:8px;color:#37474f;font-style:italic">
+      <tr><td colspan="3" style="padding:3px 0 1px;font-size:9px;color:#37474f;font-style:italic">
         † área total de cada fonte (ver interseção abaixo)
       </td></tr>
     </table>`;
@@ -5374,6 +5378,7 @@ function _buildCmpStats(statsA, statsB) {
 
 function _setCmpViewMode(mode) {
   _cmpViewMode = mode;
+  _setCmpOverlayBtnsEnabled(mode === 'swipe');
   const btnSwipe = document.getElementById('cmp-btn-swipe');
   const btnZones = document.getElementById('cmp-btn-zones');
   if (btnSwipe) {
@@ -5388,13 +5393,33 @@ function _setCmpViewMode(mode) {
   }
 
   if (mode === 'swipe') {
-    if (_cmpOverlayA) _cmpOverlayA.addTo(map);
-    if (_cmpOverlayB) _cmpOverlayB.addTo(map);
-    if (_cmpDividerEl) _cmpDividerEl.style.display = '';
-    if (_cmpLegendA)   { _cmpLegendA.style.display = ''; requestAnimationFrame(_repositionCmpLegendA); }
-    if (_cmpLegendB)   _cmpLegendB.style.display   = '';
+    // "MDE" show/hide toggle (see _toggleCmpDemVisibility) gates the raster overlays,
+    // divider and their legends together
+    if (_cmpDemVisible) {
+      if (_cmpOverlayA) _cmpOverlayA.addTo(map);
+      if (_cmpOverlayB) _cmpOverlayB.addTo(map);
+      if (_cmpDividerEl) _cmpDividerEl.style.display = '';
+      if (_cmpLegendA)   { _cmpLegendA.style.display = ''; requestAnimationFrame(_repositionCmpLegendA); }
+      if (_cmpLegendB)   _cmpLegendB.style.display   = '';
+    } else {
+      if (_cmpOverlayA && map.hasLayer(_cmpOverlayA)) map.removeLayer(_cmpOverlayA);
+      if (_cmpOverlayB && map.hasLayer(_cmpOverlayB)) map.removeLayer(_cmpOverlayB);
+      if (_cmpDividerEl) _cmpDividerEl.style.display = 'none';
+      if (_cmpLegendA)   { _cmpLegendA.style.display = 'none'; _repositionCmpLegendA(); }
+      if (_cmpLegendB)   _cmpLegendB.style.display   = 'none';
+    }
     if (_cmpZoneOverlay)  { try { map.removeLayer(_cmpZoneOverlay); } catch(e){} }
     if (_cmpZoneLegendEl) _cmpZoneLegendEl.style.display = 'none';
+    // Curvas de nível voltam a aparecer (clipadas pelo controle deslizante), sujeito ao
+    // toggle "Curvas + Rótulos" (see _toggleCmpContourVisibility)
+    ['cmpCtrPaneA', 'cmpCtrPaneB'].forEach(pn => {
+      const p = map.getPane(pn);
+      if (p) p.style.display = _cmpContourVisible ? '' : 'none';
+    });
+    // Polígonos AC/AD (Seção 1.4) voltam a aparecer junto com a legenda
+    if (_acadLayerA && !map.hasLayer(_acadLayerA)) _acadLayerA.addTo(map);
+    if (_acadLayerB && !map.hasLayer(_acadLayerB)) _acadLayerB.addTo(map);
+    if (_acadLayerA || _acadLayerB) _showMapLeg('acad-cmp', true);
     _updateCmpClip(_cmpSwipeX);
   } else {
     if (_cmpOverlayA && map.hasLayer(_cmpOverlayA)) map.removeLayer(_cmpOverlayA);
@@ -5402,12 +5427,59 @@ function _setCmpViewMode(mode) {
     if (_cmpDividerEl) _cmpDividerEl.style.display = 'none';
     if (_cmpLegendA)   { _cmpLegendA.style.display = 'none'; _repositionCmpLegendA(); }
     if (_cmpLegendB)   _cmpLegendB.style.display   = 'none';
-    // ゾーン比較モード: 等高線SVGのクリップを解除して両DEMを全面表示
+    // ゾーン比較モードでは等高線は不要な情報なので非表示にする
     ['cmpCtrPaneA', 'cmpCtrPaneB'].forEach(pn => {
       const p = map.getPane(pn);
-      if (p) p.querySelectorAll('svg').forEach(s => { s.style.clipPath = ''; });
+      if (p) p.style.display = 'none';
     });
+    // ゾーン比較モードではAC/ADポリゴン（1.4）も非表示にする
+    if (_acadLayerA && map.hasLayer(_acadLayerA)) map.removeLayer(_acadLayerA);
+    if (_acadLayerB && map.hasLayer(_acadLayerB)) map.removeLayer(_acadLayerB);
+    _showMapLeg('acad-cmp', false);
     _buildCmpZones();
+  }
+}
+
+// "MDE" / "Curvas" show/hide toggles. Only visible in "Declividade" (swipe)
+// mode — in "Zonas θ≥25°" mode both are already hidden regardless of these flags — but
+// the flag still updates so the effect is remembered when switching back to swipe.
+function _updateCmpVisToggleBtn(id, visible) {
+  const btn = document.getElementById(id);
+  if (!btn) return;
+  btn.style.color       = visible ? '#42a5f5' : '#455a64';
+  btn.style.borderColor = visible ? 'rgba(66,165,245,.35)' : 'rgba(255,255,255,.08)';
+  btn.style.background  = visible ? 'rgba(66,165,245,.08)' : 'rgba(255,255,255,.04)';
+}
+
+function _toggleCmpDemVisibility() {
+  _cmpDemVisible = !_cmpDemVisible;
+  _updateCmpVisToggleBtn('cmp-btn-dem-vis', _cmpDemVisible);
+  _setCmpViewMode(_cmpViewMode);
+}
+
+function _toggleCmpContourVisibility() {
+  _cmpContourVisible = !_cmpContourVisible;
+  _updateCmpVisToggleBtn('cmp-btn-contour-vis', _cmpContourVisible);
+  _setCmpViewMode(_cmpViewMode);
+}
+
+// The "Mostrar no mapa" group (MDE/Curvas/AC-AD) only applies to "Declividade"
+// mode — in "Zonas θ≥25°" all three are forced hidden regardless, so disable them
+// there rather than let them silently do nothing when clicked.
+function _setCmpOverlayBtnsEnabled(enabled) {
+  const ids = ['cmp-btn-dem-vis', 'cmp-btn-contour-vis', 'cmp-btn-acad-vis'];
+  ids.forEach(id => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    btn.disabled     = !enabled;
+    btn.style.cursor = enabled ? 'pointer' : 'not-allowed';
+  });
+  if (enabled) {
+    _updateCmpVisToggleBtn('cmp-btn-dem-vis',     _cmpDemVisible);
+    _updateCmpVisToggleBtn('cmp-btn-contour-vis', _cmpContourVisible);
+    _updateCmpVisToggleBtn('cmp-btn-acad-vis',    !_acadCleared);
+  } else {
+    ids.forEach(id => _updateCmpVisToggleBtn(id, false));
   }
 }
 
@@ -5494,7 +5566,7 @@ function _updateCmpStatsOverlay(statsA, statsB) {
 
   sec.innerHTML = `
     <div style="border-top:1px solid rgba(255,255,255,.08);margin-top:6px;padding-top:6px">
-      <div style="font-size:8px;color:#546e7a;margin-bottom:5px;font-style:italic">
+      <div style="font-size:9px;color:#546e7a;margin-bottom:5px;font-style:italic">
         <i class="fa fa-compress-arrows-alt fa-xs"></i> Calculado na área de interseção A∩B
       </div>
       <table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:7px">
@@ -5513,12 +5585,12 @@ function _updateCmpStatsOverlay(statsA, statsB) {
         <div style="width:${wAB_pct}%;background:rgba(150,50,200,0.85)" title="A∩B: ${fmtKm2(haAB)} km²"></div>
         <div style="width:${wB_pct}%;background:rgba(240,80,0,0.75)" title="Apenas B: ${fmtKm2(haBonly)} km²"></div>
       </div>
-      <div style="display:flex;justify-content:space-between;font-size:8px;margin-top:3px">
+      <div style="display:flex;justify-content:space-between;font-size:9px;margin-top:3px">
         <span style="color:rgba(80,180,230,0.9)">Apenas A</span>
         <span style="color:rgba(180,100,230,0.9)">A ∩ B</span>
         <span style="color:rgba(240,120,30,0.9)">Apenas B</span>
       </div>
-      <div style="display:flex;justify-content:space-between;font-size:8px;color:#78909c;margin-top:1px">
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:#78909c;margin-top:1px">
         <span>${fmtKm2(haAonly)} km²</span>
         <span>${fmtKm2(haAB)} km²</span>
         <span>${fmtKm2(haBonly)} km²</span>
@@ -10537,58 +10609,18 @@ function _showResInfoPopup(btn) {
   }, 0);
 }
 
-function _acadUpdateBtn() {
-  const btn = document.getElementById('acad-cmp-btn');
-  if (!btn) return;
-  const ready = !!_cmpStatsA && !!_cmpStatsB;
-  btn.disabled = !ready;
-  btn.style.opacity = ready ? '1' : '.5';
-  btn.style.cursor  = ready ? 'pointer' : 'not-allowed';
-}
-
-// Sync Section 1.4 from the last completed Section 1.2 analysis.
-// Called when the 1.4 accordion is opened.
+// Sync Section 1.4's labels from the last completed Section 1.2 analysis.
+// Called automatically right after runComparisonAnalysis() completes (no manual
+// button/accordion for this anymore — see the acc-acad-cmp comment in the HTML).
 function _syncAcadFromCmp() {
-  const panel = document.getElementById('acad-cmp-src-panel');
-
-  const hasA = !!_cmpStatsA;
-  const hasB = !!_cmpStatsB;
-
-  if (hasA) {
+  if (_cmpStatsA) {
     _acadLabelA = _cmpDetectedLabelA || (DEM_META[cmpSrcA] || DEM_META['aw3d_05']).name.split('(')[0].trim();
     _acadTypeA  = cmpSrcA;
   }
-  if (hasB) {
+  if (_cmpStatsB) {
     _acadLabelB = _cmpDetectedLabelB || (DEM_META[cmpSrcB] || DEM_META['aw3d_05']).name.split('(')[0].trim();
     _acadTypeB  = cmpSrcB;
   }
-
-  if (panel) {
-    if (hasA && hasB) {
-      const slotHtml = (color, label, srcType) => {
-        const srcLabel = srcType === 'geotiff' ? 'GeoTIFF'
-                       : srcType === 'srtm'    ? 'SRTM 30m'
-                       :                         'Copernicus';
-        return `<div style="flex:1;padding:6px 8px;background:rgba(0,0,0,.18);border-radius:4px;font-size:10px;line-height:1.7">
-          <div style="color:${color};font-weight:600">
-            <i class="fa fa-link fa-xs"></i>&nbsp;${label}
-          </div>
-          <div style="color:#78909c">${srcLabel}&nbsp;<span style="color:#37474f">(de 1.2)</span></div>
-        </div>`;
-      };
-      panel.innerHTML = `<div style="display:flex;gap:6px">
-        ${slotHtml('#64b5f6', _acadLabelA, cmpSrcTypeA)}
-        ${slotHtml('#ffb74d', _acadLabelB, cmpSrcTypeB)}
-      </div>`;
-    } else {
-      panel.innerHTML = `<div style="font-size:10px;color:#37474f;padding:8px;background:rgba(0,0,0,.15);border-radius:4px;line-height:1.7;text-align:center">
-        <i class="fa fa-arrow-left fa-xs"></i>
-        Execute a Comparação na Seção 1.2 primeiro
-      </div>`;
-    }
-  }
-
-  _acadUpdateBtn();
 }
 
 
@@ -10616,7 +10648,6 @@ async function runAcadComparison() {
     return;
   }
 
-  const btn = document.getElementById('acad-cmp-btn');
   const msg = document.getElementById('acad-cmp-msg');
   const overlay = document.getElementById('processing-overlay');
   const barEl   = document.getElementById('proc-bar');
@@ -10625,7 +10656,6 @@ async function runAcadComparison() {
   const titleEl = document.querySelector('.proc-title');
   const setStep = (p, m) => { barEl.style.width=p+'%'; pctEl.textContent=p+'%'; stepEl.textContent=m; };
 
-  btn.disabled = true; btn.style.opacity = '.5'; btn.style.cursor = 'not-allowed';
   msg.style.display = 'none';
   clearAcadComparison();
 
@@ -10659,6 +10689,7 @@ async function runAcadComparison() {
       slotErrors.push('B: ' + errB.message);
     }
     _acadAcB = resB.ac; _acadAdB = resB.ad;
+    _acadZoneCountA = resA.zoneCount; _acadZoneCountB = resB.zoneCount;
     setStep(100, 'B concluído'); await new Promise(r => setTimeout(r, 400));
 
     overlay.classList.remove('show');
@@ -10672,7 +10703,8 @@ async function runAcadComparison() {
 
     _showAcadComparison();
     _showAcadStats(resA.zoneCount, resB.zoneCount);
-    document.getElementById('acad-cmp-clear-btn').style.display = 'block';
+    _acadCleared = false;
+    _updateCmpVisToggleBtn('cmp-btn-acad-vis', true);
     msg.style.display = 'block';
     if (slotErrors.length) {
       msg.innerHTML = '<i class="fa fa-exclamation-triangle" style="color:#ffa726"></i>&nbsp;Comparação concluída com avisos: ' + slotErrors.join('; ');
@@ -10685,8 +10717,6 @@ async function runAcadComparison() {
     console.error('Acad comparison error:', err);
     toast('warn', '<i class="fa fa-exclamation-triangle" style="color:#ef5350"></i>&nbsp;<b>Erro:</b> ' + err.message);
   }
-
-  btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer';
 }
 
 function _showAcadComparison() {
@@ -10711,13 +10741,14 @@ function _showAcadComparison() {
   Object.entries(_acadAcB || {}).forEach(([, ring]) => drawRing(_acadLayerB, ring, '#f06000', '#ffb74d', 0.25));
   Object.entries(_acadAdB || {}).forEach(([, ring]) => drawRing(_acadLayerB, ring, '#e65100', '#ffb74d', 0.1, '6 3'));
 
-  _acadLayerA.addTo(map);
-  _acadLayerB.addTo(map);
+  // Só entra no mapa se a visualização atual não for "Zonas θ≥25°" (que oculta os
+  // polígonos AC/AD) — evita reaparecer indevidamente ao reexecutar/reexibir em modo zona.
+  if (_cmpViewMode !== 'zones') { _acadLayerA.addTo(map); _acadLayerB.addTo(map); }
   layerControl.addOverlay(_acadLayerA,
     `<i class="fa fa-object-group fa-xs" style="color:#64b5f6"></i>&nbsp;AC/AD A (${_acadLabelA})`);
   layerControl.addOverlay(_acadLayerB,
     `<i class="fa fa-object-group fa-xs" style="color:#ffb74d"></i>&nbsp;AC/AD B (${_acadLabelB})`);
-  _showMapLeg('acad-cmp', true);
+  _showMapLeg('acad-cmp', _cmpViewMode !== 'zones');
 }
 
 function _buildAcadLegend() {
@@ -10745,7 +10776,8 @@ function _showAcadStats(nZonesA, nZonesB) {
   const fmt = n => n.toLocaleString('pt-BR');
   panel.style.display = 'block';
   panel.innerHTML =
-    '<div style="font-weight:600;color:#b39ddb;font-size:10px;margin-bottom:4px;letter-spacing:.3px">RESULTADO DA COMPARAÇÃO</div>'
+    '<div style="border-top:1px solid rgba(255,255,255,.08);margin-top:6px;padding-top:6px">'
+    + '<div style="font-weight:600;color:#b39ddb;font-size:10px;margin-bottom:4px;letter-spacing:.3px">ZONAS AC/AD (Área Crítica / Dispersão)</div>'
     + '<table style="width:100%;border-collapse:collapse;font-size:10px">'
     + '<tr><td style="color:#546e7a;padding:1px 0;width:50%"></td>'
     + '<td style="padding:1px 4px;color:#64b5f6;text-align:center">A</td>'
@@ -10759,7 +10791,7 @@ function _showAcadStats(nZonesA, nZonesB) {
     + '<tr><td style="color:#78909c">Zonas AD</td>'
     + '<td style="padding:1px 4px;color:#cfd8dc;text-align:center">' + fmt(Object.keys(_acadAdA||{}).length) + '</td>'
     + '<td style="padding:1px 4px;color:#cfd8dc;text-align:center">' + fmt(Object.keys(_acadAdB||{}).length) + '</td></tr>'
-    + '</table>';
+    + '</table></div>';
 }
 
 function clearAcadComparison() {
@@ -10770,10 +10802,40 @@ function clearAcadComparison() {
   _acadAcA = null; _acadAdA = null; _acadAcB = null; _acadAdB = null;
   const stats = document.getElementById('acad-cmp-stats');
   if (stats) { stats.style.display = 'none'; stats.innerHTML = ''; }
-  const clearBtn = document.getElementById('acad-cmp-clear-btn');
-  if (clearBtn) clearBtn.style.display = 'none';
   const msg = document.getElementById('acad-cmp-msg');
   if (msg) { msg.style.display = 'none'; msg.innerHTML = ''; }
+}
+
+// Remove the AC/AD map layers/legend/stats display WITHOUT discarding the computed
+// ring data (_acadAcA/_acadAdA/_acadAcB/_acadAdB) or zone counts — unlike
+// clearAcadComparison(), which fully resets state before a fresh recompute.
+// This is what makes the manual "Limpar/Mostrar" toggle below instant (no re-analysis).
+function _hideAcadComparison() {
+  if (_acadLayerA) { layerControl.removeLayer(_acadLayerA); try { map.removeLayer(_acadLayerA); } catch(e){} _acadLayerA = null; }
+  if (_acadLayerB) { layerControl.removeLayer(_acadLayerB); try { map.removeLayer(_acadLayerB); } catch(e){} _acadLayerB = null; }
+  if (_acadLegendEl) { _acadLegendEl.remove(); _acadLegendEl = null; }
+  _showMapLeg('acad-cmp', false);
+  const stats = document.getElementById('acad-cmp-stats');
+  if (stats) stats.style.display = 'none'; // keep innerHTML — restored as-is on redisplay
+  const msg = document.getElementById('acad-cmp-msg');
+  if (msg) msg.style.display = 'none';     // keep innerHTML — same reason
+}
+
+// "AC/AD" eye-toggle in the "Mostrar no mapa" group (cmp-btn-acad-vis).
+// Both directions are instant: hiding keeps the already-computed AC/AD rings in
+// memory, and showing again just redraws from them — no re-analysis, no DEM re-read.
+function _toggleAcadCleared() {
+  if (_acadCleared) {
+    _showAcadComparison();
+    _showAcadStats(_acadZoneCountA, _acadZoneCountB);
+    const msg = document.getElementById('acad-cmp-msg');
+    if (msg) msg.style.display = 'block';
+    _acadCleared = false;
+  } else {
+    _hideAcadComparison();
+    _acadCleared = true;
+  }
+  _updateCmpVisToggleBtn('cmp-btn-acad-vis', !_acadCleared);
 }
 
 // ── Session auto-save / restore ────────────────────────────────────────────
