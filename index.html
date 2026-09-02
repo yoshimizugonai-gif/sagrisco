@@ -5393,18 +5393,16 @@ function _setCmpViewMode(mode) {
   }
 
   if (mode === 'swipe') {
-    // "MDE" show/hide toggle (see _toggleCmpDemVisibility) gates the raster overlays,
-    // divider and their legends together
+    // "MDE" show/hide toggle (see _toggleCmpDemVisibility) gates the raster overlays
+    // and their legends together
     if (_cmpDemVisible) {
       if (_cmpOverlayA) _cmpOverlayA.addTo(map);
       if (_cmpOverlayB) _cmpOverlayB.addTo(map);
-      if (_cmpDividerEl) _cmpDividerEl.style.display = '';
       if (_cmpLegendA)   { _cmpLegendA.style.display = ''; requestAnimationFrame(_repositionCmpLegendA); }
       if (_cmpLegendB)   _cmpLegendB.style.display   = '';
     } else {
       if (_cmpOverlayA && map.hasLayer(_cmpOverlayA)) map.removeLayer(_cmpOverlayA);
       if (_cmpOverlayB && map.hasLayer(_cmpOverlayB)) map.removeLayer(_cmpOverlayB);
-      if (_cmpDividerEl) _cmpDividerEl.style.display = 'none';
       if (_cmpLegendA)   { _cmpLegendA.style.display = 'none'; _repositionCmpLegendA(); }
       if (_cmpLegendB)   _cmpLegendB.style.display   = 'none';
     }
@@ -5416,6 +5414,11 @@ function _setCmpViewMode(mode) {
       const p = map.getPane(pn);
       if (p) p.style.display = _cmpContourVisible ? '' : 'none';
     });
+    // O controle deslizante (slider) precisa ficar visível sempre que houver algo
+    // sendo dividido por ele — MDE (raster) OU Curvas (contornos), não apenas MDE.
+    // Caso contrário, com "MDE" OFF e "Curvas" ON, as curvas continuam sendo
+    // clipadas pela posição do slider mas o usuário perde a alça para arrastá-lo.
+    if (_cmpDividerEl) _cmpDividerEl.style.display = (_cmpDemVisible || _cmpContourVisible) ? '' : 'none';
     // Polígonos AC/AD (Seção 1.4) voltam a aparecer junto com a legenda
     if (_acadLayerA && !map.hasLayer(_acadLayerA)) _acadLayerA.addTo(map);
     if (_acadLayerB && !map.hasLayer(_acadLayerB)) _acadLayerB.addTo(map);
