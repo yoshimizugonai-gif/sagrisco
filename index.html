@@ -5186,8 +5186,12 @@ function _updateCmpClip(x) {
   const mapRect = mapEl.getBoundingClientRect();
   const D = mapRect.left + x / 100 * mapRect.width;
 
+  // A alça do slider precisa acompanhar o arraste mesmo quando o MDE (A/B) está
+  // OFF e só as Curvas estão visíveis — por isso a posição é atualizada fora do
+  // bloco aOn&&bOn, que só controla o clipPath dos rasters MDE.
+  if (_cmpDividerEl) _cmpDividerEl.style.left = x + '%';
+
   if (aOn && bOn) {
-    if (_cmpDividerEl) _cmpDividerEl.style.left = x + '%';
     if (imgA) { const rA = imgA.getBoundingClientRect(); imgA.style.clipPath = `inset(0 ${Math.max(0, rA.right - D).toFixed(1)}px 0 0)`; }
     if (imgB) { const rB = imgB.getBoundingClientRect(); imgB.style.clipPath = `inset(0 0 0 ${Math.max(0, D - rB.left).toFixed(1)}px)`; }
   } else {
