@@ -5322,7 +5322,8 @@ function _buildCmpStats(statsA, statsB) {
   panel.style.display = 'block';
   panel.innerHTML = `
     <div style="display:flex;gap:4px;margin-bottom:8px">
-      <button id="cmp-btn-swipe" onclick="_setCmpViewMode('swipe')"
+      <button id="cmp-btn-swipe" onclick="_onDeclividadeBtnClick()"
+        title="Clique novamente para alternar entre slider e sobreposição de A+B"
         style="flex:1;padding:5px 6px;border-radius:4px;font-size:13px;font-family:inherit;cursor:pointer;
                border:1px solid rgba(103,58,183,.5);color:#ce93d8;
                background:rgba(103,58,183,.3)">
@@ -5380,15 +5381,25 @@ function _buildCmpStats(statsA, statsB) {
     </table>`;
 }
 
+// Declividade tem dois submodos: 'swipe' (slider divisório) e 'overlay'
+// (A e B sobrepostos por completo, sem clip — ver _onDeclividadeBtnClick).
+function _onDeclividadeBtnClick() {
+  _setCmpViewMode(_cmpViewMode === 'swipe' ? 'overlay' : 'swipe');
+}
+
 function _setCmpViewMode(mode) {
   _cmpViewMode = mode;
-  _setCmpOverlayBtnsEnabled(mode === 'swipe');
+  const isDeclividade = (mode === 'swipe' || mode === 'overlay');
+  _setCmpOverlayBtnsEnabled(isDeclividade, mode === 'overlay');
   const btnSwipe = document.getElementById('cmp-btn-swipe');
   const btnZones = document.getElementById('cmp-btn-zones');
   if (btnSwipe) {
-    btnSwipe.style.background = mode === 'swipe' ? 'rgba(103,58,183,.3)' : 'transparent';
-    btnSwipe.style.color      = mode === 'swipe' ? '#ce93d8' : '#90a4ae';
-    btnSwipe.style.border     = mode === 'swipe' ? '1px solid rgba(103,58,183,.5)' : '1px solid rgba(103,58,183,.3)';
+    btnSwipe.style.background = isDeclividade ? 'rgba(103,58,183,.3)' : 'transparent';
+    btnSwipe.style.color      = isDeclividade ? '#ce93d8' : '#90a4ae';
+    btnSwipe.style.border     = isDeclividade ? '1px solid rgba(103,58,183,.5)' : '1px solid rgba(103,58,183,.3)';
+    btnSwipe.innerHTML = mode === 'overlay'
+      ? '<i class="fa fa-clone"></i> Declividade (A+B)'
+      : '<i class="fa fa-arrows-alt-h"></i> Declividade';
   }
   if (btnZones) {
     btnZones.style.background = mode === 'zones' ? 'rgba(103,58,183,.3)' : 'transparent';
@@ -5396,10 +5407,11 @@ function _setCmpViewMode(mode) {
     btnZones.style.border     = mode === 'zones' ? '1px solid rgba(103,58,183,.5)' : '1px solid rgba(103,58,183,.3)';
   }
 
-  if (mode === 'swipe') {
-    // "MDE" show/hide toggle (see _toggleCmpDemVisibility) gates the raster overlays
-    // and their legends together
-    if (_cmpDemVisible) {
+  if (isDeclividade) {
+    // No submodo 'overlay' o MDE fica sempre OFF (o foco é comparar as curvas A/B
+    // sobrepostas; dois rasters semitransparentes um sobre o outro só atrapalhariam).
+    const demVisible = mode === 'overlay' ? false : _cmpDemVisible;
+    if (demVisible) {
       if (_cmpOverlayA) _cmpOverlayA.addTo(map);
       if (_cmpOverlayB) _cmpOverlayB.addTo(map);
       if (_cmpLegendA)   { _cmpLegendA.style.display = ''; requestAnimationFrame(_repositionCmpLegendA); }
@@ -5412,22 +5424,30 @@ function _setCmpViewMode(mode) {
     }
     if (_cmpZoneOverlay)  { try { map.removeLayer(_cmpZoneOverlay); } catch(e){} }
     if (_cmpZoneLegendEl) _cmpZoneLegendEl.style.display = 'none';
-    // Curvas de nível voltam a aparecer (clipadas pelo controle deslizante), sujeito ao
-    // toggle "Curvas + Rótulos" (see _toggleCmpContourVisibility)
+    // Curvas de nível voltam a aparecer, sujeito ao toggle "Curvas + Rótulos"
+    // (see _toggleCmpContourVisibility) — clipadas pelo slider em 'swipe', ou
+    // exibidas por completo (A e B juntas) em 'overlay'.
     ['cmpCtrPaneA', 'cmpCtrPaneB'].forEach(pn => {
       const p = map.getPane(pn);
       if (p) p.style.display = _cmpContourVisible ? '' : 'none';
     });
-    // O controle deslizante (slider) precisa ficar visível sempre que houver algo
-    // sendo dividido por ele — MDE (raster) OU Curvas (contornos), não apenas MDE.
-    // Caso contrário, com "MDE" OFF e "Curvas" ON, as curvas continuam sendo
-    // clipadas pela posição do slider mas o usuário perde a alça para arrastá-lo.
-    if (_cmpDividerEl) _cmpDividerEl.style.display = (_cmpDemVisible || _cmpContourVisible) ? '' : 'none';
     // Polígonos AC/AD (Seção 1.4) voltam a aparecer junto com a legenda
     if (_acadLayerA && !map.hasLayer(_acadLayerA)) _acadLayerA.addTo(map);
     if (_acadLayerB && !map.hasLayer(_acadLayerB)) _acadLayerB.addTo(map);
     if (_acadLayerA || _acadLayerB) _showMapLeg('acad-cmp', true);
-    _updateCmpClip(_cmpSwipeX);
+
+    if (mode === 'swipe') {
+      // O controle deslizante (slider) precisa ficar visível sempre que houver algo
+      // sendo dividido por ele — MDE (raster) OU Curvas (contornos), não apenas MDE.
+      // Caso contrário, com "MDE" OFF e "Curvas" ON, as curvas continuam sendo
+      // clipadas pela posição do slider mas o usuário perde a alça para arrastá-lo.
+      if (_cmpDividerEl) _cmpDividerEl.style.display = (demVisible || _cmpContourVisible) ? '' : 'none';
+      _updateCmpClip(_cmpSwipeX);
+    } else {
+      // Sobreposição: sem slider — A e B exibidas por completo, sem clipPath.
+      if (_cmpDividerEl) _cmpDividerEl.style.display = 'none';
+      _clearCmpSwipeClipping();
+    }
   } else {
     if (_cmpOverlayA && map.hasLayer(_cmpOverlayA)) map.removeLayer(_cmpOverlayA);
     if (_cmpOverlayB && map.hasLayer(_cmpOverlayB)) map.removeLayer(_cmpOverlayB);
@@ -5472,22 +5492,38 @@ function _toggleCmpContourVisibility() {
 
 // The "Mostrar no mapa" group (MDE/Curvas/AC-AD) only applies to "Declividade"
 // mode — in "Zonas θ≥25°" all three are forced hidden regardless, so disable them
-// there rather than let them silently do nothing when clicked.
-function _setCmpOverlayBtnsEnabled(enabled) {
+// there rather than let them silently do nothing when clicked. Within "Declividade",
+// the submodo 'overlay' (A+B sobrepostos) additionally forces "MDE" off/disabled —
+// only that one button, "Curvas" e "AC/AD" continuam operáveis normalmente.
+function _setCmpOverlayBtnsEnabled(enabled, demForcedOff) {
   const ids = ['cmp-btn-dem-vis', 'cmp-btn-contour-vis', 'cmp-btn-acad-vis'];
   ids.forEach(id => {
     const btn = document.getElementById(id);
     if (!btn) return;
-    btn.disabled     = !enabled;
-    btn.style.cursor = enabled ? 'pointer' : 'not-allowed';
+    const thisEnabled = enabled && !(id === 'cmp-btn-dem-vis' && demForcedOff);
+    btn.disabled     = !thisEnabled;
+    btn.style.cursor = thisEnabled ? 'pointer' : 'not-allowed';
   });
   if (enabled) {
-    _updateCmpVisToggleBtn('cmp-btn-dem-vis',     _cmpDemVisible);
+    _updateCmpVisToggleBtn('cmp-btn-dem-vis',     demForcedOff ? false : _cmpDemVisible);
     _updateCmpVisToggleBtn('cmp-btn-contour-vis', _cmpContourVisible);
     _updateCmpVisToggleBtn('cmp-btn-acad-vis',    !_acadCleared);
   } else {
     ids.forEach(id => _updateCmpVisToggleBtn(id, false));
   }
+}
+
+// Remove qualquer clipPath residual de uma sessão 'swipe' anterior — usado ao
+// entrar no submodo 'overlay' (A+B sobrepostos por completo, sem slider).
+function _clearCmpSwipeClipping() {
+  const imgA = _cmpOverlayA?.getElement();
+  const imgB = _cmpOverlayB?.getElement();
+  if (imgA) imgA.style.clipPath = '';
+  if (imgB) imgB.style.clipPath = '';
+  ['cmpCtrPaneA', 'cmpCtrPaneB'].forEach(pn => {
+    const p = map.getPane(pn);
+    if (p) p.querySelectorAll('svg').forEach(svg => { svg.style.clipPath = ''; });
+  });
 }
 
 function _computeCmpOverlapStats() {
