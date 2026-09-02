@@ -6906,7 +6906,20 @@ function _buildCmpContourLayers() {
     pB.style.pointerEvents = 'none';
   }
 
-  function _genCmpLayer(statsObj, lineColor, paneName) {
+  // クリックした等高線のプロパティ（標高・種別・入力データ源・解像度）をポップアップ表示。
+  // 既存のAC/AD比較ポップアップ（.lpop）と同じスタイルを流用。
+  function _mkContourPopupHtml(f, sideLabel, lineColor, srcName, resTxt) {
+    const tipoTxt = f.properties.major ? `Mestra (${zMajorInt} m)` : `Intermediária (${zMinorInt} m)`;
+    return `<div class="lpop">
+      <h4 style="color:${lineColor}">${sideLabel} — Curva de nível</h4>
+      <p>Elevação: <b>${Math.round(f.properties.elevation)} m</b></p>
+      <p>Tipo: ${tipoTxt}</p>
+      <p>Fonte: ${srcName}</p>
+      <p>Resolução: ${resTxt}</p>
+    </div>`;
+  }
+
+  function _genCmpLayer(statsObj, lineColor, paneName, sideLabel) {
     const nLat = Math.min(vb.getNorth() + latPad, statsObj._nwLat);
     const sLat = Math.max(vb.getSouth() - latPad, statsObj._seLat);
     const wLng = Math.max(vb.getWest()  - lngPad, statsObj._nwLng);
@@ -6918,15 +6931,31 @@ function _buildCmpContourLayers() {
       clip.nwLat, clip.nwLng, clip.seLat, clip.seLng, statsObj.cellM || 30, zMinorInt, zMajorInt);
     if (!cGJ) return { lyr: null, cGJ: null, clipBounds: null };
     const clipBounds = { nLat: clip.nwLat, wLng: clip.nwLng, sLat: clip.seLat, eLng: clip.seLng };
+    const srcKey  = sideLabel === 'A' ? cmpSrcA : cmpSrcB;
+    const srcName = sideLabel === 'A'
+      ? (_cmpDetectedLabelA || (DEM_META[srcKey] || {}).name || srcKey)
+      : (_cmpDetectedLabelB || (DEM_META[srcKey] || {}).name || srcKey);
+    const resTxt = statsObj.cellM != null ? `~${statsObj.cellM} m/px` : '—';
+    const onEachFeature = (f, layer) =>
+      layer.bindPopup(_mkContourPopupHtml(f, sideLabel, lineColor, srcName, resTxt), { closeButton: true, maxWidth: 220 });
     const lyr = L.layerGroup([
-      L.geoJSON(cGJ, { pane: paneName, filter: f => f.properties.major,
+      L.geoJSON(cGJ, { pane: paneName, interactive: false, filter: f => f.properties.major,
         style: () => ({ color:'#fff', weight:2.2, opacity:0.15, lineCap:'round', lineJoin:'round' }) }),
-      L.geoJSON(cGJ, { pane: paneName, filter: f => f.properties.major,
+      L.geoJSON(cGJ, { pane: paneName, interactive: false, filter: f => f.properties.major,
         style: () => ({ color:lineColor, weight:1.2, opacity:0.55, lineCap:'round', lineJoin:'round' }) }),
-      L.geoJSON(cGJ, { pane: paneName, filter: f => !f.properties.major,
-        style: () => ({ color:lineColor, weight:0.6, opacity:0.35, lineCap:'round', lineJoin:'round' }) })
+      L.geoJSON(cGJ, { pane: paneName, interactive: false, filter: f => !f.properties.major,
+        style: () => ({ color:lineColor, weight:0.6, opacity:0.35, lineCap:'round', lineJoin:'round' }) }),
+      // 見た目は太さ1.2px/0.6pxの細い線だが、実クリック時のヒット判定はその上に
+      // 重ねた「透明・幅広（weight:12・opacity:0）」な当たり判定専用レイヤーで行う。
+      // 細い線を直接interactiveにするとマウスでピクセル単位を正確に狙わないと
+      // 反応しないため（実質クリックできない）、視覚とヒット判定を分離している。
+      L.geoJSON(cGJ, { pane: paneName, onEachFeature,
+        style: () => ({ color:'#000', weight:12, opacity:0, lineCap:'round', lineJoin:'round' }) })
     ]);
-    return { lyr, cGJ, clipBounds };
+    // totW（ダウンサンプル後のグリッド幅）をラベル間引きステップの算出に渡す。
+    // A/Bで元解像度が大きく異なっても（例：Copernicus 30m vs GeoTIFF 0.5m）、
+    // ラベル密度を揃えるため（see _addCmpContourLabels）。
+    return { lyr, cGJ, clipBounds, totW: clip.totW };
   }
 
   function _applyCmpLayer(lyr, existingVar, lineColor, labelKey, srcKey, varSetter) {
@@ -6947,10 +6976,10 @@ function _buildCmpContourLayers() {
   }
 
   // Phase 1: 等高線ライン即時表示
-  const { lyr: gA, cGJ: cGJA, clipBounds: cbA } = _genCmpLayer(_cmpStatsA, '#1565c0', 'cmpCtrPaneA');
+  const { lyr: gA, cGJ: cGJA, clipBounds: cbA, totW: twA } = _genCmpLayer(_cmpStatsA, '#1565c0', 'cmpCtrPaneA', 'A');
   _applyCmpLayer(gA, cmpContourLayerA, '#1565c0', 'A', cmpSrcA, v => { cmpContourLayerA = v; });
 
-  const { lyr: gB, cGJ: cGJB, clipBounds: cbB } = _genCmpLayer(_cmpStatsB, '#e65100', 'cmpCtrPaneB');
+  const { lyr: gB, cGJ: cGJB, clipBounds: cbB, totW: twB } = _genCmpLayer(_cmpStatsB, '#e65100', 'cmpCtrPaneB', 'B');
   _applyCmpLayer(gB, cmpContourLayerB, '#e65100', 'B', cmpSrcB, v => { cmpContourLayerB = v; });
 
   // スワイプモード: ビルド直後にクリップを適用
@@ -6960,8 +6989,8 @@ function _buildCmpContourLayers() {
   if (_cmpContourPhase2Timer) clearTimeout(_cmpContourPhase2Timer);
   _cmpContourPhase2Timer = setTimeout(() => {
     _cmpContourPhase2Timer = null;
-    if (cGJA && cmpContourLayerA && cbA) _addCmpContourLabels(cGJA, cmpContourLayerA, curZ, cbA, '#1565c0', 'cmpCtrPaneA');
-    if (cGJB && cmpContourLayerB && cbB) _addCmpContourLabels(cGJB, cmpContourLayerB, curZ, cbB, '#e65100', 'cmpCtrPaneB');
+    if (cGJA && cmpContourLayerA && cbA) _addCmpContourLabels(cGJA, cmpContourLayerA, curZ, cbA, '#1565c0', 'cmpCtrPaneA', twA);
+    if (cGJB && cmpContourLayerB && cbB) _addCmpContourLabels(cGJB, cmpContourLayerB, curZ, cbB, '#e65100', 'cmpCtrPaneB', twB);
   }, 50);
 }
 
@@ -6985,8 +7014,13 @@ function _clearCmpContourLayers() {
   _cmpContourComputedBnds = null;
 }
 
-function _addCmpContourLabels(cGJ, targetGroup, curZ, clipBounds, color, paneName) {
-  const STEP = 400;
+function _addCmpContourLabels(cGJ, targetGroup, curZ, clipBounds, color, paneName, totW) {
+  // グリッド幅ベースの適応ステップ（Pesquisaと同方式、see contourLabelFullLayer 生成部）：
+  // 固定ステップ数だと、線の頂点密度が元DEMの解像度に比例するため、低解像度DEM
+  // （例：Copernicus 30m）は高解像度DEM（例：GeoTIFF 0.5m）よりラベルがまばらに
+  // なってしまう。totW（ダウンサンプル後のグリッド幅）を分母にすることで、A・B
+  // の元解像度が違っても画面上のラベル密度が同程度になる。
+  const STEP = Math.max(20, Math.round((totW || 1600) / 4));
   const mkOpts = { interactive: false, keyboard: false, pane: paneName };
   const mkIcon = elev => L.divIcon({ className: 'contour-label',
     html: `<span style="color:${color};font-weight:600">${Math.round(elev)}</span>`, iconSize: null });
