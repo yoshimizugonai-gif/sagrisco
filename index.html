@@ -5526,6 +5526,15 @@ function _clearCmpSwipeClipping() {
   });
 }
 
+// Nome de exibição da fonte A/B (arquivo detectado automaticamente, ou o nome
+// cadastrado em DEM_META) — usado nos popups de curvas de nível e de zonas.
+function _cmpSourceLabel(side) {
+  const srcKey = side === 'A' ? cmpSrcA : cmpSrcB;
+  return side === 'A'
+    ? (_cmpDetectedLabelA || (DEM_META[srcKey] || {}).name || srcKey)
+    : (_cmpDetectedLabelB || (DEM_META[srcKey] || {}).name || srcKey);
+}
+
 function _computeCmpOverlapStats() {
   _cmpCountA = 0; _cmpCountB = 0; _cmpCountAB = 0;
   _cmpIntBounds = null; _cmpIntNW = 0; _cmpIntNH = 0;
@@ -5736,6 +5745,69 @@ function _buildCmpZoneLegend() {
   container.appendChild(el);
   _cmpZoneLegendEl = el;
 }
+
+// Amostra o grid bruto (elevação + declividade) de um lado (A ou B) no ponto
+// clicado. Distingue "fora da área de análise" (extensão de A ou de B não
+// cobre esse ponto) de "sem dado" (dentro da extensão, mas célula NoData) de
+// um valor real — a máscara binária usada para colorir a Zona não faz essa
+// distinção, então o overlay sozinho pode confundir "B só" com "fora de A".
+function _sampleCmpGridAt(lat, lng, statsObj, bounds, nR, nC) {
+  if (!statsObj || !statsObj._grid || !bounds) return { inRange: false };
+  const s = bounds[0][0], w = bounds[0][1], n = bounds[1][0], e = bounds[1][1];
+  if (lat <= s || lat >= n || lng <= w || lng >= e) return { inRange: false };
+  const latSpan = n - s, lngSpan = e - w;
+  const r = Math.min(nR - 1, Math.max(0, Math.floor((n - lat) / latSpan * nR)));
+  const c = Math.min(nC - 1, Math.max(0, Math.floor((lng - w) / lngSpan * nC)));
+  const idx = r * nC + c;
+  const elev = statsObj._grid[idx];
+  if (elev == null || elev <= DEM_NODATA + 1) return { inRange: true, noData: true };
+  const slope = statsObj._slope ? statsObj._slope[idx] : null;
+  return { inRange: true, noData: false, elev, slope };
+}
+
+function _onZoneMapClick(e) {
+  if (_cmpViewMode !== 'zones') return;
+  if (!_cmpMaskA || !_cmpMaskB || !_cmpBoundsA || !_cmpBoundsB) return;
+
+  const { lat, lng } = e.latlng;
+  const a = _sampleCmpGridAt(lat, lng, _cmpStatsA, _cmpBoundsA, _cmpMaskNRA, _cmpMaskNCA);
+  const b = _sampleCmpGridAt(lat, lng, _cmpStatsB, _cmpBoundsB, _cmpMaskNRB, _cmpMaskNCB);
+  if (!a.inRange && !b.inRange) return; // fora da extensão de ambos — nada a mostrar
+
+  const aSteep = a.inRange && !a.noData && a.slope >= 25;
+  const bSteep = b.inRange && !b.noData && b.slope >= 25;
+  // Mesmas cores exatas usadas em _buildCmpZones, para o popup bater com o overlay.
+  const zone = aSteep && bSteep ? { label: 'A ∩ B — Ambos θ≥25°',   color: 'rgb(150,50,200)' }
+             : aSteep           ? { label: 'Apenas A — θ≥25°',      color: 'rgb(30,160,220)' }
+             : bSteep           ? { label: 'Apenas B — θ≥25°',      color: 'rgb(240,80,0)' }
+             :                    { label: 'Nenhum — θ<25° nos dois', color: '#78909c' };
+
+  const sideLine = (label, s, srcName) => {
+    if (!s.inRange) return `<p>${label}: <span style="color:#546e7a">fora da área de análise</span></p>`;
+    if (s.noData)   return `<p>${label} (${srcName}): <span style="color:#546e7a">sem dado</span></p>`;
+    const mark = s.slope >= 25 ? '✓ ≥25°' : '✗ <25°';
+    return `<p>${label} (${srcName}): <b>${s.slope.toFixed(1)}°</b> ${mark}</p>`;
+  };
+
+  let elevLine = '';
+  if (a.inRange && !a.noData && b.inRange && !b.noData) {
+    elevLine = `<p>Elevação — A: ${Math.round(a.elev)} m / B: ${Math.round(b.elev)} m</p>`;
+  } else if (a.inRange && !a.noData) {
+    elevLine = `<p>Elevação — A: ${Math.round(a.elev)} m</p>`;
+  } else if (b.inRange && !b.noData) {
+    elevLine = `<p>Elevação — B: ${Math.round(b.elev)} m</p>`;
+  }
+
+  const html = `<div class="lpop">
+    <h4 style="color:${zone.color}">● ${zone.label}</h4>
+    ${sideLine('A', a, _cmpSourceLabel('A'))}
+    ${sideLine('B', b, _cmpSourceLabel('B'))}
+    ${elevLine}
+  </div>`;
+
+  L.popup({ closeButton: true, maxWidth: 240 }).setLatLng(e.latlng).setContent(html).openOn(map);
+}
+map.on('click', _onZoneMapClick);
 
 function _clearCmpSwipe() {
   if (_cmpMapHandler) { map.off('move zoom', _cmpMapHandler); _cmpMapHandler = null; }
@@ -6931,10 +7003,7 @@ function _buildCmpContourLayers() {
       clip.nwLat, clip.nwLng, clip.seLat, clip.seLng, statsObj.cellM || 30, zMinorInt, zMajorInt);
     if (!cGJ) return { lyr: null, cGJ: null, clipBounds: null };
     const clipBounds = { nLat: clip.nwLat, wLng: clip.nwLng, sLat: clip.seLat, eLng: clip.seLng };
-    const srcKey  = sideLabel === 'A' ? cmpSrcA : cmpSrcB;
-    const srcName = sideLabel === 'A'
-      ? (_cmpDetectedLabelA || (DEM_META[srcKey] || {}).name || srcKey)
-      : (_cmpDetectedLabelB || (DEM_META[srcKey] || {}).name || srcKey);
+    const srcName = _cmpSourceLabel(sideLabel);
     const resTxt = statsObj.cellM != null ? `~${statsObj.cellM} m/px` : '—';
     const onEachFeature = (f, layer) =>
       layer.bindPopup(_mkContourPopupHtml(f, sideLabel, lineColor, srcName, resTxt), { closeButton: true, maxWidth: 220 });
