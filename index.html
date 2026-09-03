@@ -5791,7 +5791,10 @@ function _onZoneMapClick(e) {
 
   let elevLine = '';
   if (a.inRange && !a.noData && b.inRange && !b.noData) {
-    elevLine = `<p>Elevação — A: ${Math.round(a.elev)} m / B: ${Math.round(b.elev)} m</p>`;
+    const diff = b.elev - a.elev;
+    const diffTxt = `${diff >= 0 ? '+' : ''}${Math.round(diff)} m`;
+    elevLine = `<p>Elevação — A: ${Math.round(a.elev)} m / B: ${Math.round(b.elev)} m</p>
+    <p>Diferença (B−A): <b>${diffTxt}</b></p>`;
   } else if (a.inRange && !a.noData) {
     elevLine = `<p>Elevação — A: ${Math.round(a.elev)} m</p>`;
   } else if (b.inRange && !b.noData) {
